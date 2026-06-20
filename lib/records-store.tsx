@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react'
@@ -20,15 +21,42 @@ type RecordsContextValue = {
 }
 
 const RecordsContext = createContext<RecordsContextValue | null>(null)
+const STORAGE_KEY = 'kiryo-records-v1'
 
 function sortByDateDesc(records: DayRecord[]): DayRecord[] {
   return [...records].sort((a, b) => (a.date < b.date ? 1 : -1))
+}
+
+function readStoredRecords(): DayRecord[] | null {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return null
+    return parsed
+  } catch {
+    return null
+  }
 }
 
 export function RecordsProvider({ children }: { children: React.ReactNode }) {
   const [records, setRecords] = useState<DayRecord[]>(() =>
     sortByDateDesc(MOCK_RECORDS),
   )
+  const [readyToPersist, setReadyToPersist] = useState(false)
+
+  useEffect(() => {
+    const storedRecords = readStoredRecords()
+    if (storedRecords) {
+      setRecords(sortByDateDesc(storedRecords))
+    }
+    setReadyToPersist(true)
+  }, [])
+
+  useEffect(() => {
+    if (!readyToPersist) return
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+  }, [readyToPersist, records])
 
   const addRecord = useCallback((record: DayRecord) => {
     setRecords((prev) => {

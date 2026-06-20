@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { ArrowRight, Check, Mic } from 'lucide-react'
+import { ArrowRight, CalendarDays, Check, Mic, Waves } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { InsightBlock } from '@/components/insight-block'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,8 @@ export default function HomePage() {
   const { records, todayRecord } = useRecords()
   const latest = records[0]
   const recentThree = records.slice(0, 3)
+  const voiceCount = records.filter((record) => record.hasVoice).length
+  const photoCount = records.filter((record) => record.photo).length
 
   return (
     <AppShell>
@@ -32,6 +34,39 @@ export default function HomePage() {
             くりかえす毎日のなかの、小さな発見を見つけるために。
           </p>
         </header>
+
+        <section className="grid grid-cols-3 gap-2">
+          <div className="rounded-2xl border border-border bg-card px-3 py-3">
+            <CalendarDays
+              className="mb-2 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <p className="font-mono text-xl text-foreground">{records.length}</p>
+            <p className="text-[10px] tracking-wide text-muted-foreground">
+              days
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card px-3 py-3">
+            <Mic
+              className="mb-2 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <p className="font-mono text-xl text-foreground">{voiceCount}</p>
+            <p className="text-[10px] tracking-wide text-muted-foreground">
+              voice
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card px-3 py-3">
+            <Waves
+              className="mb-2 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <p className="font-mono text-xl text-foreground">{photoCount}</p>
+            <p className="text-[10px] tracking-wide text-muted-foreground">
+              photo
+            </p>
+          </div>
+        </section>
 
         {/* 今日を始める / 今日はもう残した */}
         {todayRecord ? (

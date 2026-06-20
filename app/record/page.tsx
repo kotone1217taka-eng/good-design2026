@@ -63,6 +63,7 @@ export default function RecordPage() {
     const insight = await observeDay({
       note,
       hasPhoto: Boolean(photo),
+      hasVoice,
     })
     const record: DayRecord = {
       id: `rec-${today}`,

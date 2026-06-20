@@ -1,25 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Noto_Sans_JP, Noto_Serif_JP, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { RecordsProvider } from '@/lib/records-store'
-
-const notoSansJP = Noto_Sans_JP({
-  variable: '--font-noto-sans-jp',
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '700'],
-})
-
-const notoSerifJP = Noto_Serif_JP({
-  variable: '--font-noto-serif-jp',
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
-})
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
 
 export const metadata: Metadata = {
   title: 'きょうの余白 — もう朝だ、の前に。',
@@ -42,7 +24,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${notoSansJP.variable} ${notoSerifJP.variable} ${geistMono.variable} bg-background`}
+      className="bg-background"
     >
       <body className="font-sans antialiased">
         <RecordsProvider>{children}</RecordsProvider>

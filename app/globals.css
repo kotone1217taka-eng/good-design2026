@@ -50,6 +50,9 @@
 }
 
 :root {
+  --font-noto-sans-jp: 'Yu Gothic', 'Hiragino Sans', 'Meiryo', sans-serif;
+  --font-noto-serif-jp: 'Yu Mincho', 'Hiragino Mincho ProN', serif;
+  --font-geist-mono: Consolas, 'SFMono-Regular', monospace;
   /* 朝が来る前の空気 — 薄い藍をふくんだ紙の白、淡いグレー、静かな藍 */
   --background: oklch(0.966 0.006 252);
   --foreground: oklch(0.3 0.026 260);
