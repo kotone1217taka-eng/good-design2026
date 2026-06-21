@@ -9,7 +9,8 @@ import {
   useState,
 } from 'react'
 import type { DayRecord } from './types'
-import { MOCK_RECORDS, TODAY } from './mock-data'
+import { MOCK_RECORDS } from './mock-data'
+import { getTodayIso } from './date'
 
 type RecordsContextValue = {
   records: DayRecord[]
@@ -43,6 +44,7 @@ export function RecordsProvider({ children }: { children: React.ReactNode }) {
   const [records, setRecords] = useState<DayRecord[]>(() =>
     sortByDateDesc(MOCK_RECORDS),
   )
+  const [today] = useState(() => getTodayIso())
   const [readyToPersist, setReadyToPersist] = useState(false)
 
   useEffect(() => {
@@ -74,12 +76,12 @@ export function RecordsProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<RecordsContextValue>(() => {
     return {
       records,
-      today: TODAY,
-      todayRecord: records.find((r) => r.date === TODAY),
+      today,
+      todayRecord: records.find((r) => r.date === today),
       getById,
       addRecord,
     }
-  }, [records, getById, addRecord])
+  }, [records, today, getById, addRecord])
 
   return (
     <RecordsContext.Provider value={value}>{children}</RecordsContext.Provider>

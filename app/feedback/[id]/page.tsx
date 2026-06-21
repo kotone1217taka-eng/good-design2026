@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation'
-import { MOCK_RECORDS, TODAY } from '@/lib/mock-data'
+import { MOCK_RECORDS } from '@/lib/mock-data'
+import { staticRecordIdsAroundToday } from '@/lib/date'
 import { FeedbackClient } from './feedback-client'
 
 const staticRecordIds = new Set([
   ...MOCK_RECORDS.map((record) => record.id),
-  `rec-${TODAY}`,
+  ...staticRecordIdsAroundToday(),
 ])
 
 export function generateStaticParams() {

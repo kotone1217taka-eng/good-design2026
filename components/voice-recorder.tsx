@@ -1,28 +1,37 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Mic, Square, RotateCcw } from 'lucide-react'
+import { Mic, RotateCcw, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { VoiceAnalysis } from '@/lib/types'
 
-/**
- * 音声録音の「UIだけ」のモック。
- * 実際の録音は行わず、経過秒数を見せて録音した気分にする。
- * onRecorded で「録音済み」状態を親に伝える。
- */
+function analyzeVoice(seconds: number): VoiceAnalysis {
+  const durationSeconds = Math.max(1, seconds)
+  const pace =
+    durationSeconds < 6
+      ? '短い声'
+      : durationSeconds < 18
+        ? 'ひと息ぶんの声'
+        : '長めの声'
+
+  return { durationSeconds, pace }
+}
+
 export function VoiceRecorder({
   onChange,
 }: {
-  onChange: (recorded: boolean) => void
+  onChange: (analysis: VoiceAnalysis | null) => void
 }) {
   const [recording, setRecording] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const [done, setDone] = useState(false)
+  const [analysis, setAnalysis] = useState<VoiceAnalysis | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (recording) {
       timerRef.current = setInterval(() => {
-        setSeconds((s) => s + 1)
+        setSeconds((current) => current + 1)
       }, 1000)
     } else if (timerRef.current) {
       clearInterval(timerRef.current)
@@ -37,16 +46,19 @@ export function VoiceRecorder({
   ).padStart(2, '0')}`
 
   function stop() {
+    const nextAnalysis = analyzeVoice(seconds)
     setRecording(false)
     setDone(true)
-    onChange(true)
+    setAnalysis(nextAnalysis)
+    onChange(nextAnalysis)
   }
 
   function reset() {
     setRecording(false)
     setDone(false)
     setSeconds(0)
-    onChange(false)
+    setAnalysis(null)
+    onChange(null)
   }
 
   return (
@@ -71,19 +83,15 @@ export function VoiceRecorder({
             )}
           </button>
 
-          {/* 録音中のさざ波 */}
           {recording ? (
-            <div
-              className="flex h-6 items-center gap-1"
-              aria-hidden="true"
-            >
-              {Array.from({ length: 9 }).map((_, i) => (
+            <div className="flex h-6 items-center gap-1" aria-hidden="true">
+              {Array.from({ length: 9 }).map((_, index) => (
                 <span
-                  key={i}
+                  key={index}
                   className="w-1 animate-pulse rounded-full bg-primary/60"
                   style={{
-                    height: `${8 + ((i * 7 + seconds * 3) % 16)}px`,
-                    animationDelay: `${i * 0.08}s`,
+                    height: `${8 + ((index * 7 + seconds * 3) % 16)}px`,
+                    animationDelay: `${index * 0.08}s`,
                   }}
                 />
               ))}
@@ -103,11 +111,11 @@ export function VoiceRecorder({
           <div className="flex w-full items-center gap-3 rounded-xl bg-secondary px-4 py-3">
             <Mic className="size-4 text-primary" aria-hidden="true" />
             <div className="flex flex-1 items-center gap-1" aria-hidden="true">
-              {Array.from({ length: 22 }).map((_, i) => (
+              {Array.from({ length: 22 }).map((_, index) => (
                 <span
-                  key={i}
+                  key={index}
                   className="w-0.5 rounded-full bg-primary/40"
-                  style={{ height: `${6 + ((i * 13) % 18)}px` }}
+                  style={{ height: `${6 + ((index * 13) % 18)}px` }}
                 />
               ))}
             </div>
@@ -115,6 +123,11 @@ export function VoiceRecorder({
               {mmss}
             </span>
           </div>
+          {analysis && (
+            <p className="text-xs tracking-wide text-muted-foreground">
+              {analysis.pace}・{analysis.durationSeconds}秒
+            </p>
+          )}
           <button
             type="button"
             onClick={reset}

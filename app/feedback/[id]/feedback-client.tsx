@@ -55,11 +55,19 @@ export function FeedbackClient({ id }: { id: string }) {
             <div className="flex flex-wrap gap-2">
               <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs text-secondary-foreground">
                 <ImageIcon className="size-3.5" aria-hidden="true" />
-                写真
+                {record.photoAnalysis
+                  ? `${record.photoAnalysis.brightness}・${record.photoAnalysis.tone}`
+                  : record.hasPhoto === false
+                    ? '写真なし'
+                  : '写真'}
               </span>
               <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs text-secondary-foreground">
                 <Mic className="size-3.5" aria-hidden="true" />
-                {record.hasVoice ? '音声あり' : '音声なし'}
+                {record.voiceAnalysis
+                  ? `${record.voiceAnalysis.durationSeconds}秒・${record.voiceAnalysis.pace}`
+                  : record.hasVoice
+                    ? '音声あり'
+                    : '音声なし'}
               </span>
             </div>
 

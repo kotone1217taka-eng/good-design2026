@@ -1,56 +1,51 @@
-import type { AiInsight } from './types'
+import type { AiInsight, PhotoAnalysis, VoiceAnalysis } from './types'
 
 export type ObservationInput = {
   note: string
   hasPhoto: boolean
   hasVoice?: boolean
+  photoAnalysis?: PhotoAnalysis
+  voiceAnalysis?: VoiceAnalysis
 }
 
 type Lens = {
   match: RegExp
-  scene: string
-  view: string
+  action: string
   question: string
 }
 
 const LENSES: Lens[] = [
   {
     match: /(通学|電車|駅|バス|歩|道|帰り道|コンビニ|自転車)/,
-    scene: '移動の途中に残った景色',
-    view: '明日の通学では、目的地までの距離ではなく、途中で一度だけ目に残るものを探す',
-    question: 'いつもの道で、なぜそこだけ目が止まったのか。',
+    action: 'いつもの道の端を一つ見る',
+    question: 'いつもの道で、目が止まった一点はどこか。',
   },
   {
     match: /(空|雲|雨|風|光|夕方|朝|夜|水たまり|影|天気)/,
-    scene: '空気や光の変化',
-    view: '明日の通学では、空や影を時計のように見てみる',
-    question: '時間は、どんな色や明るさで見えていたか。',
+    action: '空の色を時刻として見る',
+    question: '時間は、どんな色で見えていたか。',
   },
   {
     match: /(声|話|友達|先生|家族|人|会話|電話|LINE|音)/,
-    scene: '誰かの声や気配',
-    view: '明日の通学では、人の言葉より、声の高さや間の長さを聞いてみる',
-    question: '言葉の内容より長く残った音は何か。',
+    action: '人の声の間を聞く',
+    question: '言葉より長く残った音は何か。',
   },
   {
     match: /(疲|眠|だる|焦|不安|嫌|つら|静か|ぼーっと)/,
-    scene: '体や気分の重さ',
-    view: '明日の通学では、元気かどうかではなく、体がどの速さで朝に追いつくかを見る',
-    question: '体がまだ起きていない時間は、どんな景色を選んでいたか。',
+    action: '体の遅さも景色として見る',
+    question: '体が朝に追いつく前、何が見えていたか。',
   },
   {
     match: /(嬉|楽|安心|好き|きれい|面白|笑|落ち着|よかった)/,
-    scene: '気持ちが少し動いた瞬間',
-    view: '明日の通学では、気分が少し軽くなる場所を地図の目印にしてみる',
-    question: 'その軽さは、場所から来たのか、人から来たのか。',
+    action: '少し軽くなる場所を目印にする',
+    question: 'その軽さは、どこから来ていたか。',
   },
 ]
 
 const DEFAULT_LENS: Lens = {
   match: /.*/,
-  scene: '記録に残った小さな違和感',
-  view: '明日の通学では、いつもの景色の中で昨日と違う一点だけを探す',
-  question: 'なぜ、その一点だけが記憶に残ったのか。',
+  action: '昨日と違う一点だけを探す',
+  question: 'なぜ、その一点だけが残ったのか。',
 }
 
 function cleanNote(note: string): string {
@@ -61,19 +56,19 @@ function pickLens(note: string): Lens {
   return LENSES.find((lens) => lens.match.test(note)) ?? DEFAULT_LENS
 }
 
-function photoSignal(hasPhoto: boolean): string {
-  return hasPhoto
-    ? '写真に切り取ったもの'
-    : '写真にしなかったまま残ったもの'
+function photoPhrase(input: ObservationInput): string {
+  if (!input.hasPhoto) return '写真なし'
+  if (!input.photoAnalysis) return '今日の写真'
+  return `${input.photoAnalysis.brightness}で${input.photoAnalysis.tone}写真`
 }
 
-function voiceSignal(hasVoice?: boolean): string {
-  return hasVoice
-    ? '声に出したときの間や揺れ'
-    : '声にしなかった余白'
+function voicePhrase(input: ObservationInput): string {
+  if (!input.hasVoice) return '声なし'
+  if (!input.voiceAnalysis) return '短い声'
+  return `${input.voiceAnalysis.durationSeconds}秒の${input.voiceAnalysis.pace}`
 }
 
-function extractFragment(note: string, lens: Lens): string {
+function extractKeyword(note: string, lens: Lens): string {
   const fragments = note
     .split(/[。！？!?、,.，\n]/)
     .map((fragment) => fragment.trim())
@@ -81,29 +76,28 @@ function extractFragment(note: string, lens: Lens): string {
   const matched = fragments.find((fragment) => lens.match.test(fragment))
   const picked = matched ?? fragments[0]
 
-  if (!picked) return lens.scene
-  return picked.length > 28 ? `${picked.slice(0, 27)}…` : picked
+  if (!picked) return ''
+  return picked.length > 12 ? picked.slice(0, 12) : picked
 }
 
 export function createObservationJson(input: ObservationInput): AiInsight {
   const note = cleanNote(input.note)
   const lens = pickLens(note)
-  const fragment = extractFragment(note, lens)
-  const photo = photoSignal(input.hasPhoto)
-  const voice = voiceSignal(input.hasVoice)
-
-  const sentence = `今日の${photo}と${voice}は、「${fragment}」をただの出来事ではなく、${lens.view}ための手がかりにしていました。`
+  const keyword = extractKeyword(note, lens)
+  const photo = photoPhrase(input)
+  const voice = voicePhrase(input)
+  const subject = keyword ? `「${keyword}」` : '今日の記録'
 
   return {
-    discovery: `${photo}と${voice}の両方に、${lens.scene}が残っていました。`,
-    margin: '写真を選んで、声を残すまでのあいだにあった小さな観察',
+    discovery: `${photo}と${voice}に、${subject}が残っていました。`,
+    margin: '写真を選び、声を止めたあとに残った数秒',
     key: lens.question,
-    sentence,
+    sentence: `${photo}と${voice}。明日は${lens.action}。`,
   }
 }
 
 export async function observeDay(input: ObservationInput): Promise<AiInsight> {
-  await new Promise((resolve) => setTimeout(resolve, 1100))
+  await new Promise((resolve) => setTimeout(resolve, 700))
 
   return createObservationJson(input)
 }

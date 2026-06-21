@@ -1,4 +1,5 @@
 import type { DayRecord } from './types'
+import { getTodayIso } from './date'
 
 /**
  * バックエンドなしのプロトタイプ用モックデータ。
@@ -106,4 +107,4 @@ export const MOCK_RECORDS: DayRecord[] = [
 ]
 
 /** 「今日」の日付（プロトタイプ固定） */
-export const TODAY = '2026-06-15'
+export const TODAY = getTodayIso()

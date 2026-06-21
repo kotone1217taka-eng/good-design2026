@@ -13,14 +13,14 @@ import { Separator } from '@/components/ui/separator'
 import { useRecords } from '@/lib/records-store'
 import { observeDay } from '@/lib/mock-ai'
 import { formatDateJP } from '@/lib/date'
-import type { DayRecord } from '@/lib/types'
+import type { DayRecord, PhotoInput, VoiceAnalysis } from '@/lib/types'
 
 export default function RecordPage() {
   const router = useRouter()
   const { today, todayRecord, addRecord } = useRecords()
 
-  const [photo, setPhoto] = useState<string | null>(null)
-  const [hasVoice, setHasVoice] = useState(false)
+  const [photo, setPhoto] = useState<PhotoInput | null>(null)
+  const [voiceAnalysis, setVoiceAnalysis] = useState<VoiceAnalysis | null>(null)
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -55,7 +55,8 @@ export default function RecordPage() {
     )
   }
 
-  const canSave = (photo || note.trim().length > 0) && !saving
+  const canSave =
+    (photo || voiceAnalysis || note.trim().length > 0) && !saving
 
   async function handleSave() {
     if (!canSave) return
@@ -63,14 +64,19 @@ export default function RecordPage() {
     const insight = await observeDay({
       note,
       hasPhoto: Boolean(photo),
-      hasVoice,
+      hasVoice: Boolean(voiceAnalysis),
+      photoAnalysis: photo?.analysis,
+      voiceAnalysis: voiceAnalysis ?? undefined,
     })
     const record: DayRecord = {
       id: `rec-${today}`,
       date: today,
-      photo: photo ?? '/records/evening-sky.png',
+      photo: photo?.src ?? '/records/evening-sky.png',
+      hasPhoto: Boolean(photo),
+      photoAnalysis: photo?.analysis,
       note: note.trim() || '（声の記録のみ）',
-      hasVoice,
+      hasVoice: Boolean(voiceAnalysis),
+      voiceAnalysis: voiceAnalysis ?? undefined,
       insight,
     }
     addRecord(record)
@@ -101,7 +107,7 @@ export default function RecordPage() {
         {/* 声 */}
         <section className="flex flex-col gap-2.5">
           <SectionLabel n="2">少しの声</SectionLabel>
-          <VoiceRecorder onChange={setHasVoice} />
+          <VoiceRecorder onChange={setVoiceAnalysis} />
         </section>
 
         {/* テキスト代替 */}
