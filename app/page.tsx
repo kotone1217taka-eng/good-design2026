@@ -1,13 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { ArrowRight, CalendarDays, Check, Mic, Waves } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { InsightBlock } from '@/components/insight-block'
+import { RecordImage } from '@/components/record-image'
 import { Button } from '@/components/ui/button'
 import { useRecords } from '@/lib/records-store'
-import { withBasePath } from '@/lib/base-path'
 import { formatDateJP, formatDateShort } from '@/lib/date'
 
 export default function HomePage() {
@@ -15,7 +14,7 @@ export default function HomePage() {
   const latest = records[0]
   const recentThree = records.slice(0, 3)
   const voiceCount = records.filter((record) => record.hasVoice).length
-  const photoCount = records.filter((record) => record.photo).length
+  const photoCount = records.filter((record) => record.hasPhoto !== false && record.photo).length
 
   return (
     <AppShell>
@@ -112,11 +111,9 @@ export default function HomePage() {
             className="overflow-hidden rounded-2xl border border-border bg-card"
           >
             <div className="relative aspect-[16/9] w-full">
-              <Image
-                src={withBasePath(latest.photo || '/placeholder.svg')}
+              <RecordImage
+                src={latest.photo || '/placeholder.svg'}
                 alt="直近の記録の写真"
-                fill
-                sizes="(max-width: 448px) 100vw, 448px"
                 className="object-cover"
                 priority
               />
@@ -163,11 +160,9 @@ export default function HomePage() {
                 className="group flex flex-col gap-2"
               >
                 <div className="relative aspect-square overflow-hidden rounded-xl border border-border">
-                  <Image
-                    src={withBasePath(r.photo || '/placeholder.svg')}
+                  <RecordImage
+                    src={r.photo || '/placeholder.svg'}
                     alt={`${formatDateJP(r.date)}の写真`}
-                    fill
-                    sizes="150px"
                     className="object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                   {r.hasVoice && (

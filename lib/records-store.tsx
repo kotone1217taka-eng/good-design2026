@@ -23,9 +23,22 @@ type RecordsContextValue = {
 
 const RecordsContext = createContext<RecordsContextValue | null>(null)
 const STORAGE_KEY = 'kiryo-records-v1'
+const STALE_PHOTO_FALLBACK = '/records/evening-sky.png'
 
 function sortByDateDesc(records: DayRecord[]): DayRecord[] {
   return [...records].sort((a, b) => (a.date < b.date ? 1 : -1))
+}
+
+function normalizeRecord(record: DayRecord): DayRecord {
+  if (typeof record.photo === 'string' && record.photo.startsWith('blob:')) {
+    return {
+      ...record,
+      photo: STALE_PHOTO_FALLBACK,
+      hasPhoto: false,
+    }
+  }
+
+  return record
 }
 
 function readStoredRecords(): DayRecord[] | null {
@@ -34,7 +47,7 @@ function readStoredRecords(): DayRecord[] | null {
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return null
-    return parsed
+    return parsed.map(normalizeRecord)
   } catch {
     return null
   }
@@ -64,7 +77,7 @@ export function RecordsProvider({ children }: { children: React.ReactNode }) {
     setRecords((prev) => {
       // 1日1件：同じ日付があれば置き換える
       const filtered = prev.filter((r) => r.date !== record.date)
-      return sortByDateDesc([record, ...filtered])
+      return sortByDateDesc([normalizeRecord(record), ...filtered])
     })
   }, [])
 

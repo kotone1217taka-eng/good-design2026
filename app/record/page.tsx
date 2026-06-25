@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
+import { AiKeyPanel } from '@/components/ai-key-panel'
 import { PhotoUpload } from '@/components/photo-upload'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { useRecords } from '@/lib/records-store'
-import { observeDay } from '@/lib/mock-ai'
+import { observeDayWithOpenAi, OpenAiObservationError } from '@/lib/openai-observer'
 import { formatDateJP } from '@/lib/date'
 import type { DayRecord, PhotoInput, VoiceAnalysis } from '@/lib/types'
 
@@ -23,9 +24,12 @@ export default function RecordPage() {
   const [voiceAnalysis, setVoiceAnalysis] = useState<VoiceAnalysis | null>(null)
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
+  const [isReplacing, setIsReplacing] = useState(false)
+  const [apiKey, setApiKey] = useState('')
+  const [aiError, setAiError] = useState('')
 
   // すでに今日の記録がある場合
-  if (todayRecord) {
+  if (todayRecord && !isReplacing) {
     return (
       <AppShell>
         <div className="flex flex-col gap-6">
@@ -46,9 +50,17 @@ export default function RecordPage() {
             </div>
             <Button asChild variant="secondary" className="mt-2 rounded-xl">
               <Link href={`/records/${todayRecord.id}`}>
-                今日の観察をひらく
-              </Link>
-            </Button>
+              今日の観察をひらく
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="rounded-xl font-normal text-muted-foreground"
+            onClick={() => setIsReplacing(true)}
+          >
+            今日の記録を作り直す
+          </Button>
           </div>
         </div>
       </AppShell>
@@ -61,13 +73,27 @@ export default function RecordPage() {
   async function handleSave() {
     if (!canSave) return
     setSaving(true)
-    const insight = await observeDay({
+    setAiError('')
+    const observationInput = {
       note,
       hasPhoto: Boolean(photo),
       hasVoice: Boolean(voiceAnalysis),
       photoAnalysis: photo?.analysis,
       voiceAnalysis: voiceAnalysis ?? undefined,
-    })
+      photoSrc: photo?.src,
+    }
+    let insight
+    try {
+      insight = await observeDayWithOpenAi(observationInput, apiKey)
+    } catch (error) {
+      setSaving(false)
+      setAiError(
+        error instanceof OpenAiObservationError
+          ? error.message
+          : 'AI分析に失敗しました。API keyを確認してください。',
+      )
+      return
+    }
     const record: DayRecord = {
       id: `rec-${today}`,
       date: today,
@@ -97,6 +123,8 @@ export default function RecordPage() {
             </h1>
           </div>
         </div>
+
+        <AiKeyPanel apiKey={apiKey} onChange={setApiKey} />
 
         {/* 写真 */}
         <section className="flex flex-col gap-2.5">
@@ -130,6 +158,11 @@ export default function RecordPage() {
 
         {/* 保存 */}
         <div className="flex flex-col gap-2 pt-1">
+          {aiError && (
+            <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-relaxed text-destructive">
+              {aiError}
+            </p>
+          )}
           <Button
             onClick={handleSave}
             disabled={!canSave}
@@ -139,10 +172,10 @@ export default function RecordPage() {
             {saving ? (
               <>
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                今日を観察しています…
+                {apiKey ? 'AIが写真を見ています…' : '今日を観察しています…'}
               </>
             ) : (
-              '今日を保存する'
+              isReplacing ? '今日を保存し直す' : '今日を保存する'
             )}
           </Button>
           <p className="text-center text-[11px] tracking-wide text-muted-foreground">

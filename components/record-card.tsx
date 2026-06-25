@@ -1,8 +1,7 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { Mic } from 'lucide-react'
+import { RecordImage } from '@/components/record-image'
 import type { DayRecord } from '@/lib/types'
-import { withBasePath } from '@/lib/base-path'
 import { formatDateJP } from '@/lib/date'
 
 /**
@@ -15,11 +14,9 @@ export function RecordCard({ record }: { record: DayRecord }) {
       className="group block overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/40"
     >
       <div className="relative aspect-[5/3] w-full overflow-hidden">
-        <Image
-          src={withBasePath(record.photo || '/placeholder.svg')}
+        <RecordImage
+          src={record.photo || '/placeholder.svg'}
           alt={`${formatDateJP(record.date)}の写真`}
-          fill
-          sizes="(max-width: 448px) 100vw, 448px"
           className="object-cover transition-transform duration-700 group-hover:scale-[1.03]"
         />
       </div>

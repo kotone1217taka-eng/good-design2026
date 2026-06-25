@@ -1,13 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, ImageIcon, Mic, Sparkles, TrainFront } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
+import { InsightKeywords } from '@/components/insight-keywords'
+import { RecordImage } from '@/components/record-image'
 import { useRecords } from '@/lib/records-store'
-import { withBasePath } from '@/lib/base-path'
 import { formatDateJP } from '@/lib/date'
+
+function compact(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value
+}
 
 export function RecordDetailClient({ id }: { id: string }) {
   const { getById } = useRecords()
@@ -33,11 +37,9 @@ export function RecordDetailClient({ id }: { id: string }) {
 
         <section className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="relative aspect-[5/4] w-full">
-            <Image
-              src={withBasePath(record.photo || '/placeholder.svg')}
+            <RecordImage
+              src={record.photo || '/placeholder.svg'}
               alt={`${formatDateJP(record.date)}の写真`}
-              fill
-              sizes="(max-width: 448px) 100vw, 448px"
               className="object-cover"
               priority
             />
@@ -59,7 +61,8 @@ export function RecordDetailClient({ id }: { id: string }) {
               <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs text-secondary-foreground">
                 <ImageIcon className="size-3.5" aria-hidden="true" />
                 {record.photoAnalysis
-                  ? `${record.photoAnalysis.brightness}・${record.photoAnalysis.tone}`
+                  ? record.photoAnalysis.microDetail ??
+                    `${record.photoAnalysis.brightness}・${record.photoAnalysis.tone}`
                   : record.hasPhoto === false
                     ? '写真なし'
                   : '写真'}
@@ -67,16 +70,27 @@ export function RecordDetailClient({ id }: { id: string }) {
               <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs text-secondary-foreground">
                 <Mic className="size-3.5" aria-hidden="true" />
                 {record.voiceAnalysis
-                  ? `${record.voiceAnalysis.durationSeconds}秒・${record.voiceAnalysis.pace}`
+                  ? record.voiceAnalysis.transcript
+                    ? `声: ${compact(record.voiceAnalysis.transcript, 14)}`
+                    : `${record.voiceAnalysis.durationSeconds}秒・${
+                        record.voiceAnalysis.texture ?? record.voiceAnalysis.pace
+                      }`
                   : record.hasVoice
                     ? '音声あり'
                     : '音声なし'}
               </span>
             </div>
 
-            <p className="font-serif text-[1.25rem] font-light leading-relaxed tracking-wide text-balance text-card-foreground">
-              {record.insight.sentence}
-            </p>
+            <InsightKeywords record={record} />
+
+            <section className="flex flex-col gap-2.5 border-t border-border pt-5">
+              <h2 className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                明日のヒント
+              </h2>
+              <p className="font-serif text-[1.25rem] font-light leading-relaxed tracking-wide text-balance text-card-foreground">
+                {record.insight.sentence}
+              </p>
+            </section>
           </div>
         </section>
 
