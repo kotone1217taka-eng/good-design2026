@@ -51,7 +51,7 @@ const observationSchema = {
   required: ['discovery', 'margin', 'key', 'sentence', 'keywords'],
 } as const
 
-type OpenAiObservationInput = ObservationInput & {
+export type OpenAiObservationInput = ObservationInput & {
   photoSrc?: string
 }
 

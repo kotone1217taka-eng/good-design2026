@@ -5,14 +5,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Check, Loader2 } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
-import { AiKeyPanel } from '@/components/ai-key-panel'
 import { PhotoUpload } from '@/components/photo-upload'
 import { VoiceRecorder } from '@/components/voice-recorder'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { useRecords } from '@/lib/records-store'
-import { observeDayWithOpenAi, OpenAiObservationError } from '@/lib/openai-observer'
+import { observeDay, ObserveApiError } from '@/lib/observe-client'
 import { formatDateJP } from '@/lib/date'
 import type { DayRecord, PhotoInput, VoiceAnalysis } from '@/lib/types'
 
@@ -25,7 +24,6 @@ export default function RecordPage() {
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [isReplacing, setIsReplacing] = useState(false)
-  const [apiKey, setApiKey] = useState('')
   const [aiError, setAiError] = useState('')
 
   // すでに今日の記録がある場合
@@ -50,17 +48,17 @@ export default function RecordPage() {
             </div>
             <Button asChild variant="secondary" className="mt-2 rounded-xl">
               <Link href={`/records/${todayRecord.id}`}>
-              今日の観察をひらく
-            </Link>
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            className="rounded-xl font-normal text-muted-foreground"
-            onClick={() => setIsReplacing(true)}
-          >
-            今日の記録を作り直す
-          </Button>
+                今日の観察をひらく
+              </Link>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="rounded-xl font-normal text-muted-foreground"
+              onClick={() => setIsReplacing(true)}
+            >
+              今日の記録を作り直す
+            </Button>
           </div>
         </div>
       </AppShell>
@@ -84,13 +82,13 @@ export default function RecordPage() {
     }
     let insight
     try {
-      insight = await observeDayWithOpenAi(observationInput, apiKey)
+      insight = await observeDay(observationInput)
     } catch (error) {
       setSaving(false)
       setAiError(
-        error instanceof OpenAiObservationError
+        error instanceof ObserveApiError
           ? error.message
-          : 'AI分析に失敗しました。API keyを確認してください。',
+          : 'AI分析に失敗しました。しばらくしてからもう一度試してください。',
       )
       return
     }
@@ -123,8 +121,6 @@ export default function RecordPage() {
             </h1>
           </div>
         </div>
-
-        <AiKeyPanel apiKey={apiKey} onChange={setApiKey} />
 
         {/* 写真 */}
         <section className="flex flex-col gap-2.5">
@@ -172,7 +168,7 @@ export default function RecordPage() {
             {saving ? (
               <>
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                {apiKey ? 'AIが写真を見ています…' : '今日を観察しています…'}
+                AIが写真を見ています…
               </>
             ) : (
               isReplacing ? '今日を保存し直す' : '今日を保存する'
