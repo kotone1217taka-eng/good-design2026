@@ -65,8 +65,11 @@ function getVoiceTexture(transcript: string, seconds: number): string {
   if (/雨|風|電車|車|チャイム|音|ざわ|足音/.test(transcript)) {
     return '周りの音が少し混じった声'
   }
-  if (/笑|おもしろ|変|きれい|すごい|あれ/.test(transcript)) {
+  if (/笑|おもしろ|面白|変|きれい|すごい|あれ|これ/.test(transcript)) {
     return '反応が先に出た声'
+  }
+  if (/撮|写|主役|メイン|真ん中|端/.test(transcript)) {
+    return '見ている場所を説明する声'
   }
   if (seconds < 5) return '短く切り取られた声'
   if (seconds > 18) return '少し長く眺めている声'
@@ -103,9 +106,13 @@ function getMimeType(): string | undefined {
 export function VoiceRecorder({
   onChange,
   disabled = false,
+  autoStartKey = 0,
+  required = false,
 }: {
   onChange: (voice: VoiceInput | null) => void
   disabled?: boolean
+  autoStartKey?: number
+  required?: boolean
 }) {
   const [recording, setRecording] = useState(false)
   const [seconds, setSeconds] = useState(0)
@@ -119,6 +126,7 @@ export function VoiceRecorder({
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const startedAtRef = useRef<number>(0)
   const transcriptRef = useRef('')
+  const handledAutoStartRef = useRef(0)
 
   useEffect(() => {
     transcriptRef.current = transcript
@@ -141,6 +149,19 @@ export function VoiceRecorder({
       stop()
     }
   }, [disabled, recording])
+
+  useEffect(() => {
+    if (
+      autoStartKey > 0 &&
+      autoStartKey !== handledAutoStartRef.current &&
+      !disabled &&
+      !recording &&
+      !voice
+    ) {
+      handledAutoStartRef.current = autoStartKey
+      void start()
+    }
+  }, [autoStartKey, disabled, recording, voice])
 
   useEffect(() => {
     return () => {
@@ -247,7 +268,7 @@ export function VoiceRecorder({
       setRecording(true)
       startRecognition()
     } catch {
-      setError('マイクの使用を許可すると、音声も一緒に残せます。')
+      setError('マイクの使用を許可してください。写真のあとに声も必ず残します。')
       setRecording(false)
     }
   }
@@ -279,6 +300,17 @@ export function VoiceRecorder({
 
   return (
     <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card px-5 py-7">
+      <div className="flex items-center gap-2 self-start">
+        {required && (
+          <span className="rounded-full bg-primary px-2.5 py-1 text-[11px] text-primary-foreground">
+            必須
+          </span>
+        )}
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          写真を撮ると自動で録音が始まります。何が面白かったか、何をメインで撮ったかを話してください。
+        </p>
+      </div>
+
       {!voice ? (
         <>
           <button
@@ -315,7 +347,7 @@ export function VoiceRecorder({
             </div>
           ) : (
             <p className="text-xs tracking-wide text-muted-foreground">
-              必要なら、その場の音やひとことも残せます
+              写真を撮ると、ここが自動で録音中になります
             </p>
           )}
 

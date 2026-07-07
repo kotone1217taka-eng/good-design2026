@@ -24,6 +24,7 @@ export default function RecordPage() {
 
   const [photo, setPhoto] = useState<PhotoInput | null>(null)
   const [voice, setVoice] = useState<VoiceInput | null>(null)
+  const [voiceAutoStartKey, setVoiceAutoStartKey] = useState(0)
   const [timeLeft, setTimeLeft] = useState(captureLimitSeconds)
   const [inputClosed, setInputClosed] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -56,9 +57,18 @@ export default function RecordPage() {
   function restartCapture() {
     setPhoto(null)
     setVoice(null)
+    setVoiceAutoStartKey(0)
     setTimeLeft(captureLimitSeconds)
     setInputClosed(false)
     setAiError('')
+  }
+
+  function handlePhotoChange(nextPhoto: PhotoInput | null) {
+    setPhoto(nextPhoto)
+    setVoice(null)
+    if (nextPhoto) {
+      setVoiceAutoStartKey((current) => current + 1)
+    }
   }
 
   if (authLoading) {
@@ -139,21 +149,22 @@ export default function RecordPage() {
     )
   }
 
-  const canSave = Boolean(photo) && !saving
+  const canSave = Boolean(photo && voice) && !saving
   const closedWithoutPhoto = inputClosed && !photo
+  const closedWithoutVoice = inputClosed && photo && !voice
 
   async function handleSave() {
-    if (!canSave || !photo) return
+    if (!canSave || !photo || !voice) return
     setSaving(true)
     setAiError('')
 
     const createdAt = new Date().toISOString()
     const observationInput = {
       hasPhoto: true,
-      hasVoice: Boolean(voice),
-      hasAudio: Boolean(voice),
+      hasVoice: true,
+      hasAudio: true,
       photoAnalysis: photo.analysis,
-      voiceAnalysis: voice?.analysis,
+      voiceAnalysis: voice.analysis,
       photoSrc: photo.src,
       createdAt,
     }
@@ -178,10 +189,10 @@ export default function RecordPage() {
       photo: photo.src,
       hasPhoto: true,
       photoAnalysis: photo.analysis,
-      audio: voice?.src,
-      hasAudio: Boolean(voice),
-      hasVoice: Boolean(voice),
-      voiceAnalysis: voice?.analysis,
+      audio: voice.src,
+      hasAudio: true,
+      hasVoice: true,
+      voiceAnalysis: voice.analysis,
       insight,
     }
 
@@ -197,6 +208,12 @@ export default function RecordPage() {
       )
     }
   }
+
+  const saveLabel = photo
+    ? voice
+      ? 'この瞬間を保存する'
+      : '写真のあとに声を残してください'
+    : 'まず写真を撮ってください'
 
   return (
     <AppShell showNav={!saving}>
@@ -225,27 +242,36 @@ export default function RecordPage() {
             </div>
           </div>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            いま目の前で面白いと思ったものを撮ってください。音声は必要なときだけ残せます。
+            30秒以内に写真を撮ってください。撮影後、マイクが自動で起動するので、何が面白いと感じたか、何をメインで撮ったかを話してください。
           </p>
         </div>
 
         {inputClosed && (
           <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm leading-relaxed text-muted-foreground">
             入力は締め切られました。
-            {photo
-              ? 'この写真をAIが観察します。'
-              : '写真がないため、もう一度30秒を始めてください。'}
+            {closedWithoutPhoto && '写真がないため、もう一度30秒を始めてください。'}
+            {closedWithoutVoice && '音声がないため、もう一度30秒を始めてください。'}
+            {photo && voice && 'この写真と声をAIが観察します。'}
           </div>
         )}
 
         <section className="flex flex-col gap-2.5">
           <SectionLabel n="1">写真</SectionLabel>
-          <PhotoUpload onChange={setPhoto} disabled={inputClosed || saving} />
+          <PhotoUpload
+            onChange={handlePhotoChange}
+            disabled={inputClosed || saving}
+            timeLeft={timeLeft}
+          />
         </section>
 
         <section className="flex flex-col gap-2.5">
-          <SectionLabel n="2">音声（任意）</SectionLabel>
-          <VoiceRecorder onChange={setVoice} disabled={inputClosed || saving} />
+          <SectionLabel n="2">音声</SectionLabel>
+          <VoiceRecorder
+            onChange={setVoice}
+            disabled={!photo || inputClosed || saving}
+            autoStartKey={voiceAutoStartKey}
+            required
+          />
         </section>
 
         <div className="flex flex-col gap-2 pt-1">
@@ -254,7 +280,7 @@ export default function RecordPage() {
               {aiError}
             </p>
           )}
-          {closedWithoutPhoto && (
+          {(closedWithoutPhoto || closedWithoutVoice) && (
             <Button
               type="button"
               variant="secondary"
@@ -274,14 +300,14 @@ export default function RecordPage() {
             {saving ? (
               <>
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                AIが写真を観察しています
+                AIが写真と声を観察しています
               </>
             ) : (
-              'この瞬間を保存する'
+              saveLabel
             )}
           </Button>
           <p className="text-center text-[11px] tracking-wide text-muted-foreground">
-            保存されるのは写真・音声・AIの観察結果・作成日時です
+            写真を撮ると録音が自動で始まります。保存には写真と音声の両方が必要です
           </p>
         </div>
       </div>

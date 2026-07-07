@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { Camera, RotateCcw } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Camera, RotateCcw, Video } from 'lucide-react'
 import { RecordImage } from '@/components/record-image'
 import { cn } from '@/lib/utils'
 import type { PhotoAnalysis, PhotoInput } from '@/lib/types'
@@ -41,21 +41,6 @@ const regions: Region[] = [
   },
 ]
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result)
-      } else {
-        reject(new Error('Could not read image file'))
-      }
-    }
-    reader.onerror = () => reject(reader.error ?? new Error('Could not read image file'))
-    reader.readAsDataURL(file)
-  })
-}
-
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new window.Image()
@@ -65,28 +50,26 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-async function makePersistentPhotoSrc(file: File): Promise<string> {
-  const originalSrc = await readFileAsDataUrl(file)
+function makePersistentPhotoSrcFromVideo(video: HTMLVideoElement): string {
+  const sourceWidth = video.videoWidth || 1280
+  const sourceHeight = video.videoHeight || 960
+  const scale = Math.min(1, maxStoredImageSize / Math.max(sourceWidth, sourceHeight))
+  const width = Math.max(1, Math.round(sourceWidth * scale))
+  const height = Math.max(1, Math.round(sourceHeight * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
 
-  try {
-    const img = await loadImage(originalSrc)
-    const scale = Math.min(1, maxStoredImageSize / Math.max(img.width, img.height))
-    const width = Math.max(1, Math.round(img.width * scale))
-    const height = Math.max(1, Math.round(img.height * scale))
-    const canvas = document.createElement('canvas')
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return originalSrc
-
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, width, height)
-    ctx.drawImage(img, 0, 0, width, height)
-
-    return canvas.toDataURL('image/jpeg', storedImageQuality)
-  } catch {
-    return originalSrc
+  if (!ctx) {
+    throw new Error('Could not capture camera frame')
   }
+
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+  ctx.drawImage(video, 0, 0, width, height)
+
+  return canvas.toDataURL('image/jpeg', storedImageQuality)
 }
 
 async function analyzePhoto(src: string): Promise<PhotoAnalysis> {
@@ -199,52 +182,106 @@ async function analyzePhoto(src: string): Promise<PhotoAnalysis> {
   }
 }
 
+function stopStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop())
+}
+
 export function PhotoUpload({
   onChange,
   disabled = false,
+  timeLeft,
 }: {
   onChange: (photo: PhotoInput | null) => void
   disabled?: boolean
+  timeLeft: number
 }) {
   const [preview, setPreview] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<PhotoAnalysis | null>(null)
   const [busy, setBusy] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [cameraActive, setCameraActive] = useState(false)
+  const [error, setError] = useState('')
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
 
-  async function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
-    if (disabled) return
-    const file = event.target.files?.[0]
-    if (!file) return
+  useEffect(() => {
+    return () => {
+      stopStream(streamRef.current)
+      streamRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (disabled && cameraActive) {
+      stopStream(streamRef.current)
+      streamRef.current = null
+      setCameraActive(false)
+    }
+  }, [disabled, cameraActive])
+
+  async function startCamera() {
+    if (disabled || busy) return
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
+      setError('このブラウザではカメラを起動できません。')
+      return
+    }
+
+    try {
+      setError('')
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 960 },
+        },
+        audio: false,
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+      setCameraActive(true)
+    } catch {
+      setError('カメラの使用を許可すると、この画面内で撮影できます。')
+    }
+  }
+
+  async function capturePhoto() {
+    const video = videoRef.current
+    if (!video || disabled || busy) return
 
     setBusy(true)
-    const src = await makePersistentPhotoSrc(file)
-    setPreview(src)
-    const nextAnalysis = await analyzePhoto(src)
-    setAnalysis(nextAnalysis)
-    onChange({ src, analysis: nextAnalysis })
-    setBusy(false)
+    try {
+      const src = makePersistentPhotoSrcFromVideo(video)
+      stopStream(streamRef.current)
+      streamRef.current = null
+      setCameraActive(false)
+      setPreview(src)
+      const nextAnalysis = await analyzePhoto(src)
+      setAnalysis(nextAnalysis)
+      onChange({ src, analysis: nextAnalysis })
+    } catch {
+      setError('写真を撮れませんでした。もう一度試してください。')
+    } finally {
+      setBusy(false)
+    }
   }
 
   function reset() {
     if (disabled) return
     setPreview(null)
     setAnalysis(null)
+    setError('')
     onChange(null)
-    if (inputRef.current) inputRef.current.value = ''
   }
+
+  const timerClass =
+    timeLeft <= 5
+      ? 'bg-destructive text-destructive-foreground'
+      : 'bg-black/55 text-white'
 
   return (
     <div className="flex flex-col gap-2">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleFile}
-        disabled={disabled}
-        className="sr-only"
-        id="photo-input"
-      />
       {preview ? (
         <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl border border-border">
           <RecordImage
@@ -252,8 +289,16 @@ export function PhotoUpload({
             alt="撮影した写真"
             className="object-cover"
           />
+          <span
+            className={cn(
+              'absolute right-3 top-3 min-w-14 rounded-full px-3 py-1.5 text-center font-mono text-lg tabular-nums backdrop-blur-sm',
+              timerClass,
+            )}
+          >
+            {timeLeft}
+          </span>
           {analysis && (
-            <span className="absolute left-3 top-3 max-w-[80%] rounded-full bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
+            <span className="absolute left-3 top-3 max-w-[70%] rounded-full bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
               {analysis.microDetail ?? `${analysis.brightness}光`}
             </span>
           )}
@@ -268,25 +313,65 @@ export function PhotoUpload({
           </button>
         </div>
       ) : (
-        <label
-          htmlFor={disabled ? undefined : 'photo-input'}
-          className={cn(
-            'flex aspect-[5/4] w-full flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card text-muted-foreground transition-colors',
-            disabled
-              ? 'cursor-not-allowed opacity-60'
-              : 'cursor-pointer hover:border-primary/50 hover:text-foreground',
+        <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl border border-border bg-card">
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            className={cn(
+              'size-full object-cover',
+              cameraActive ? 'opacity-100' : 'opacity-0',
+            )}
+          />
+          <span
+            className={cn(
+              'absolute right-3 top-3 min-w-14 rounded-full px-3 py-1.5 text-center font-mono text-lg tabular-nums backdrop-blur-sm',
+              timerClass,
+            )}
+          >
+            {timeLeft}
+          </span>
+          {!cameraActive && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center text-muted-foreground">
+              <span className="flex size-14 items-center justify-center rounded-full bg-secondary">
+                <Video className="size-6" aria-hidden="true" />
+              </span>
+              <span className="text-sm">
+                アプリ内カメラで撮る
+              </span>
+              <span className="text-[11px] leading-relaxed tracking-wide text-muted-foreground">
+                アプリ側ではシャッター音を鳴らしません
+              </span>
+            </div>
           )}
-        >
-          <span className="flex size-14 items-center justify-center rounded-full bg-secondary">
-            <Camera className="size-6" aria-hidden="true" />
-          </span>
-          <span className="text-sm">
-            {busy ? '写真を読み取っています' : '今、面白いと思ったものを撮る'}
-          </span>
-          <span className="text-[11px] tracking-wide text-muted-foreground">
-            30秒を過ぎると撮影は締め切られます
-          </span>
-        </label>
+          <div className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/55 to-transparent px-4 pb-4 pt-12">
+            {cameraActive ? (
+              <button
+                type="button"
+                onClick={capturePhoto}
+                disabled={disabled || busy}
+                className="flex size-16 items-center justify-center rounded-full border-4 border-white bg-white/85 text-foreground shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+                aria-label="写真を撮る"
+              >
+                <Camera className="size-7" aria-hidden="true" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={startCamera}
+                disabled={disabled || busy}
+                className="rounded-full bg-primary px-5 py-3 text-sm text-primary-foreground shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                カメラを開始
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {error && (
+        <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-relaxed text-destructive">
+          {error}
+        </p>
       )}
     </div>
   )
