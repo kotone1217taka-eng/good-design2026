@@ -9,77 +9,78 @@ import {
   useState,
 } from 'react'
 import type { DayRecord } from './types'
-import { MOCK_RECORDS } from './mock-data'
+import { useAuth } from './auth-store'
 import { getTodayIso } from './date'
+import { saveUserRecord, subscribeToUserRecords } from './firebase-records'
 
 type RecordsContextValue = {
   records: DayRecord[]
   today: string
+  loading: boolean
+  error: string
   /** 今日の記録（あれば） */
   todayRecord: DayRecord | undefined
   getById: (id: string) => DayRecord | undefined
-  addRecord: (record: DayRecord) => void
+  addRecord: (record: DayRecord) => Promise<DayRecord>
 }
 
 const RecordsContext = createContext<RecordsContextValue | null>(null)
-const STORAGE_KEY = 'kiryo-records-v1'
-const STALE_PHOTO_FALLBACK = '/records/evening-sky.png'
 
 function sortByDateDesc(records: DayRecord[]): DayRecord[] {
   return [...records].sort((a, b) => (a.date < b.date ? 1 : -1))
 }
 
-function normalizeRecord(record: DayRecord): DayRecord {
-  if (typeof record.photo === 'string' && record.photo.startsWith('blob:')) {
-    return {
-      ...record,
-      photo: STALE_PHOTO_FALLBACK,
-      hasPhoto: false,
-    }
-  }
-
-  return record
-}
-
-function readStoredRecords(): DayRecord[] | null {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return null
-    return parsed.map(normalizeRecord)
-  } catch {
-    return null
-  }
-}
-
 export function RecordsProvider({ children }: { children: React.ReactNode }) {
-  const [records, setRecords] = useState<DayRecord[]>(() =>
-    sortByDateDesc(MOCK_RECORDS),
-  )
+  const { user, loading: authLoading, configured } = useAuth()
+  const [records, setRecords] = useState<DayRecord[]>([])
   const [today] = useState(() => getTodayIso())
-  const [readyToPersist, setReadyToPersist] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    const storedRecords = readStoredRecords()
-    if (storedRecords) {
-      setRecords(sortByDateDesc(storedRecords))
+    if (authLoading) {
+      setLoading(true)
+      return
     }
-    setReadyToPersist(true)
-  }, [])
 
-  useEffect(() => {
-    if (!readyToPersist) return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
-  }, [readyToPersist, records])
+    if (!configured || !user) {
+      setRecords([])
+      setLoading(false)
+      setError('')
+      return
+    }
 
-  const addRecord = useCallback((record: DayRecord) => {
-    setRecords((prev) => {
-      // 1日1件：同じ日付があれば置き換える
-      const filtered = prev.filter((r) => r.date !== record.date)
-      return sortByDateDesc([normalizeRecord(record), ...filtered])
-    })
-  }, [])
+    setLoading(true)
+    setError('')
+    return subscribeToUserRecords(
+      user.uid,
+      (nextRecords) => {
+        setRecords(sortByDateDesc(nextRecords))
+        setLoading(false)
+      },
+      (message) => {
+        setError(message)
+        setLoading(false)
+      },
+    )
+  }, [authLoading, configured, user])
+
+  const addRecord = useCallback(
+    async (record: DayRecord) => {
+      if (!user) {
+        throw new Error('サインインすると記録を保存できます。')
+      }
+
+      const savedRecord = await saveUserRecord(user.uid, record)
+      setRecords((prev) => {
+        // 1日1件：同じ日付があれば置き換える
+        const filtered = prev.filter((r) => r.date !== savedRecord.date)
+        return sortByDateDesc([savedRecord, ...filtered])
+      })
+      return savedRecord
+    },
+    [user],
+  )
 
   const getById = useCallback(
     (id: string) => records.find((r) => r.id === id),
@@ -90,11 +91,13 @@ export function RecordsProvider({ children }: { children: React.ReactNode }) {
     return {
       records,
       today,
+      loading,
+      error,
       todayRecord: records.find((r) => r.date === today),
       getById,
       addRecord,
     }
-  }, [records, today, getById, addRecord])
+  }, [records, today, loading, error, getById, addRecord])
 
   return (
     <RecordsContext.Provider value={value}>{children}</RecordsContext.Provider>

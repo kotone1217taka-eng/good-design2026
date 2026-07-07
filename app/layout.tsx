@@ -1,12 +1,14 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import type { ReactNode } from 'react'
 import './globals.css'
+import { AuthProvider } from '@/lib/auth-store'
 import { RecordsProvider } from '@/lib/records-store'
 
 export const metadata: Metadata = {
-  title: 'きょうの余白 — もう朝だ、の前に。',
+  title: '30秒の観察',
   description:
-    '1日1枚の写真と、少しの声。AIが今日を静かに観察し、新しい発見の鍵を返してくれる、運動部生のための観察日記。',
+    'その場で撮った写真をAIが観察し、面白いと感じた点や気づきを個人的な記録として残すアプリ。',
   generator: 'v0.app',
 }
 
@@ -19,15 +21,14 @@ export const viewport: Viewport = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: ReactNode
 }>) {
   return (
-    <html
-      lang="ja"
-      className="bg-background"
-    >
+    <html lang="ja" className="bg-background">
       <body className="font-sans antialiased">
-        <RecordsProvider>{children}</RecordsProvider>
+        <AuthProvider>
+          <RecordsProvider>{children}</RecordsProvider>
+        </AuthProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

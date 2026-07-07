@@ -1,18 +1,28 @@
-# きょうの余白
+# 30秒の観察
 
-写真と声から、明日の通学時間の見方を少し変える観察文を返すNext.jsアプリです。
+アプリを開いて30秒以内に、その場で面白いと思ったものを撮るためのNext.jsアプリです。写真と任意の音声を保存し、AIが写真から気づいたこと、面白いと感じた点、その場の雰囲気を個人的な記録として返します。
 
 ## Vercelデプロイ
 
-このアプリはOpenAI APIをサーバー側から呼び出します。GitHub Pagesのような静的ホスティングではAPIキーを安全に隠せないため、Vercelにデプロイしてください。
+OpenAI APIはブラウザに公開せず、`/api/observe` のサーバー処理から呼び出します。ユーザーごとの写真・音声・AI結果はFirebase Authentication、Firestore、Storageに保存します。
 
-VercelのProject Settingsで以下の環境変数を設定します。
+VercelのProject Settingsで以下の環境変数を設定してください。
 
 ```env
 OPENAI_API_KEY=sk-...
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```
 
-`OPENAI_API_KEY` は `NEXT_PUBLIC_` を付けません。ブラウザへ公開せず、`/api/observe` のサーバー処理だけで使います。
+`OPENAI_API_KEY` には `NEXT_PUBLIC_` を付けません。Firebaseの値はFirebase ConsoleでWebアプリを追加すると表示されます。AuthenticationではGoogleログインを有効にし、Firestore DatabaseとStorageを作成してください。
+
+## Firebase Rules
+
+ユーザーごとに自分の記録だけを読み書きできるように、`firestore.rules` と `storage.rules` の内容をFirebase Consoleに設定してください。
 
 ## 開発
 
@@ -21,4 +31,4 @@ pnpm install
 pnpm dev
 ```
 
-ローカルでAI分析まで試す場合は、`.env.local` に `OPENAI_API_KEY` を設定してください。
+ローカルでAI分析とFirebase保存まで試す場合は、`.env.local` に `.env.example` と同じキーを設定してください。

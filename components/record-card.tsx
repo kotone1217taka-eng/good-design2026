@@ -3,10 +3,8 @@ import { Mic } from 'lucide-react'
 import { RecordImage } from '@/components/record-image'
 import type { DayRecord } from '@/lib/types'
 import { formatDateJP } from '@/lib/date'
+import { getInsightComment } from '@/lib/insight-display'
 
-/**
- * 記録一覧で使う1枚のカード。写真・日付・今日の一文。
- */
 export function RecordCard({ record }: { record: DayRecord }) {
   return (
     <Link
@@ -25,12 +23,12 @@ export function RecordCard({ record }: { record: DayRecord }) {
           <span className="text-xs tracking-wide text-muted-foreground">
             {formatDateJP(record.date)}
           </span>
-          {record.hasVoice && (
+          {(record.hasAudio || record.hasVoice) && (
             <Mic className="size-3.5 text-muted-foreground" aria-hidden="true" />
           )}
         </div>
         <p className="font-serif text-[15px] font-light leading-relaxed text-pretty text-card-foreground">
-          {record.insight.sentence}
+          {getInsightComment(record.insight)}
         </p>
       </div>
     </Link>

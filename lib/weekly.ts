@@ -1,78 +1,75 @@
 import type { DayRecord } from './types'
+import {
+  getInsightComment,
+  getInsightInteresting,
+  getInsightStandout,
+} from './insight-display'
 
 export type WeeklySummary = {
-  count: number
-  /** 今週よく出た言葉（頻度順） */
   words: { word: string; count: number }[]
-  /** 今週の余白（記録から拾った余白の例） */
-  margins: string[]
-  /** 今週の発見の傾向 */
+  observations: string[]
   tendency: string
-  /** 今週の一文 */
-  sentence: string
+  comment: string
 }
 
-// 観察対象になりそうな言葉（Dear Data的に数える）
-const WORD_BUCKETS: { word: string; match: RegExp }[] = [
-  { word: '帰り道', match: /(帰り道|帰る|帰って|帰り)/ },
-  { word: '朝', match: /(朝練|朝|早起き|起き)/ },
-  { word: '空', match: /(空|雲|夕|夕焼け|月|星)/ },
-  { word: '同期・先輩', match: /(同期|先輩|後輩|仲間|チーム)/ },
-  { word: 'コンビニ', match: /(コンビニ|自販機|アイス|スポドリ)/ },
-  { word: 'きつさ', match: /(きつ|つら|しんど|疲|追い込)/ },
-  { word: '静けさ', match: /(静|誰もいない|ひとり|一人)/ },
-]
+function compact(value: string, maxLength = 14): string {
+  const cleaned = value.replace(/\s+/g, ' ').trim()
+  return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength)}...` : cleaned
+}
+
+function collectWords(record: DayRecord): string[] {
+  return [
+    ...(record.insight.keywords?.photo ?? []),
+    ...(record.insight.keywords?.voice ?? []),
+    ...getInsightStandout(record.insight),
+    ...getInsightInteresting(record.insight),
+  ]
+    .map((word) => compact(word))
+    .filter(Boolean)
+}
 
 export function buildWeeklySummary(records: DayRecord[]): WeeklySummary | null {
   const week = records.slice(0, 7)
-  if (week.length === 0) return null
+  if (!week.length) return null
 
-  const joined = week.map((r) => r.note).join(' ')
-
-  const words = WORD_BUCKETS.map((b) => {
-    const matches = week.filter((r) => b.match.test(r.note)).length
-    return { word: b.word, count: matches }
+  const counts = new Map<string, number>()
+  week.flatMap(collectWords).forEach((word) => {
+    counts.set(word, (counts.get(word) ?? 0) + 1)
   })
-    .filter((w) => w.count > 0)
+
+  const words = [...counts.entries()]
+    .map(([word, count]) => ({ word, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 4)
+    .slice(0, 5)
 
-  const margins = week
-    .map((r) => r.insight.margin)
-    .filter((m, i, arr) => arr.indexOf(m) === i)
-    .slice(0, 3)
+  const observations = week
+    .flatMap((record) => [
+      getInsightComment(record.insight),
+      ...getInsightInteresting(record.insight),
+    ])
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 5)
 
-  // 傾向の観察（よく出た言葉から）
-  const top = words[0]?.word
-  let tendency =
-    'あなたは記録や結果よりも、その日の景色や時間を覚えていることが多いようです。'
-  if (top === '帰り道' || top === 'コンビニ') {
-    tendency =
-      '今週のあなたは、練習そのものより「帰り道」を多く覚えていました。気がゆるむ時間を見つけるのが上手なのかもしれません。'
-  } else if (top === '同期・先輩') {
-    tendency =
-      '今週のあなたは、ひとりの記録より「誰かと過ごした時間」をよく覚えていました。'
-  } else if (top === '空') {
-    tendency =
-      '今週のあなたは、忙しさのなかでもよく空を見上げていました。'
-  } else if (top === '朝') {
-    tendency =
-      '今週のあなたは、まだ誰もいない朝の静けさを何度も書き留めていました。'
-  }
+  const topWord = words[0]?.word
+  const photoDays = week.filter((record) => record.hasPhoto !== false).length
+  const voiceDays = week.filter(
+    (record) => record.hasAudio || record.hasVoice,
+  ).length
 
-  // 今週の一文
-  let sentence = '同じような毎日のなかに、覚えておきたい時間がいくつもあった。'
-  if (/(空|夕|雲)/.test(joined) && /(帰り|コンビニ)/.test(joined)) {
-    sentence = '帰り道の空ばかり、今週はよく覚えている。'
-  } else if (/(同期|先輩|仲間)/.test(joined)) {
-    sentence = '一人で走っているようで、誰かといた時間が残っていた。'
-  }
+  const tendency = topWord
+    ? `この週は「${topWord}」のような細部が何度か現れています。大きな出来事より、画面の端や色の変化に反応している記録が多めです。`
+    : 'この週は、写真に写った細部を少しずつ集めるような記録になっています。'
+
+  const comment =
+    voiceDays > 0
+      ? `${photoDays}枚の写真に、${voiceDays}件の音声が重なっています。写真だけでは残らない空気も少し混ざった週です。`
+      : `${photoDays}枚の写真が並んでいます。言葉より先に、目が引っかかったものが残った週です。`
 
   return {
-    count: week.length,
     words,
-    margins,
+    observations,
     tendency,
-    sentence,
+    comment,
   }
 }

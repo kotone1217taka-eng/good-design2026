@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import type { DayRecord } from '@/lib/types'
 
 function compact(value: string, maxLength: number): string {
-  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
 }
 
 function unique(values: Array<string | undefined>): string[] {
@@ -32,13 +32,12 @@ function fallbackPhotoKeywords(record: DayRecord): string[] {
 }
 
 function fallbackVoiceKeywords(record: DayRecord): string[] {
-  if (!record.hasVoice && !record.note) return []
+  if (!record.hasVoice && !record.hasAudio) return []
 
   return unique([
     record.voiceAnalysis?.transcript,
     record.voiceAnalysis?.texture,
-    record.voiceAnalysis?.hint,
-    record.note,
+    record.voiceAnalysis?.pace,
   ])
 }
 
@@ -64,7 +63,7 @@ export function InsightKeywords({ record }: { record: DayRecord }) {
       />
       <KeywordRow
         icon={<Mic className="size-3.5" aria-hidden="true" />}
-        label="声"
+        label="音声"
         keywords={voiceKeywords}
       />
     </section>

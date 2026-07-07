@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ArrowLeft, ImageIcon, Mic, Sparkles, TrainFront } from 'lucide-react'
+import { ArrowLeft, ImageIcon, Mic, Sparkles, Volume2 } from 'lucide-react'
+import { AiObservation } from '@/components/ai-observation'
 import { AppShell } from '@/components/app-shell'
 import { InsightKeywords } from '@/components/insight-keywords'
 import { RecordImage } from '@/components/record-image'
@@ -10,12 +11,22 @@ import { useRecords } from '@/lib/records-store'
 import { formatDateJP } from '@/lib/date'
 
 function compact(value: string, maxLength: number): string {
-  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value
 }
 
 export function RecordDetailClient({ id }: { id: string }) {
-  const { getById } = useRecords()
+  const { getById, loading } = useRecords()
   const record = getById(id)
+
+  if (loading) {
+    return (
+      <AppShell>
+        <div className="rounded-2xl border border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
+          記録を読み込んでいます。
+        </div>
+      </AppShell>
+    )
+  }
 
   if (!record) notFound()
 
@@ -47,11 +58,11 @@ export function RecordDetailClient({ id }: { id: string }) {
             <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 text-white">
               <span className="flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1.5 text-[11px] tracking-wide backdrop-blur-sm">
                 <Sparkles className="size-3.5" aria-hidden="true" />
-                AI analysis
+                AI observation
               </span>
               <span className="flex items-center gap-1.5 rounded-full bg-black/30 px-3 py-1.5 text-[11px] tracking-wide backdrop-blur-sm">
-                <TrainFront className="size-3.5" aria-hidden="true" />
-                commute
+                <ImageIcon className="size-3.5" aria-hidden="true" />
+                personal
               </span>
             </div>
           </div>
@@ -63,8 +74,6 @@ export function RecordDetailClient({ id }: { id: string }) {
                 {record.photoAnalysis
                   ? record.photoAnalysis.microDetail ??
                     `${record.photoAnalysis.brightness}・${record.photoAnalysis.tone}`
-                  : record.hasPhoto === false
-                    ? '写真なし'
                   : '写真'}
               </span>
               <span className="flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs text-secondary-foreground">
@@ -75,33 +84,22 @@ export function RecordDetailClient({ id }: { id: string }) {
                     : `${record.voiceAnalysis.durationSeconds}秒・${
                         record.voiceAnalysis.texture ?? record.voiceAnalysis.pace
                       }`
-                  : record.hasVoice
-                    ? '音声あり'
-                    : '音声なし'}
+                  : '音声なし'}
               </span>
             </div>
 
-            <InsightKeywords record={record} />
+            {record.audio && (
+              <div className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3">
+                <Volume2 className="size-4 text-primary" aria-hidden="true" />
+                <audio src={record.audio} controls className="h-8 flex-1" />
+              </div>
+            )}
 
-            <section className="flex flex-col gap-2.5 border-t border-border pt-5">
-              <h2 className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                明日のヒント
-              </h2>
-              <p className="font-serif text-[1.25rem] font-light leading-relaxed tracking-wide text-balance text-card-foreground">
-                {record.insight.sentence}
-              </p>
-            </section>
+            <InsightKeywords record={record} />
           </div>
         </section>
 
-        <section className="flex flex-col gap-2.5">
-          <h2 className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-            source note
-          </h2>
-          <p className="text-[15px] leading-relaxed text-pretty text-card-foreground">
-            {record.note}
-          </p>
-        </section>
+        <AiObservation record={record} />
       </div>
     </AppShell>
   )

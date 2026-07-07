@@ -2,12 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, PenLine, BookOpen, CalendarRange } from 'lucide-react'
+import { BookOpen, CalendarRange, Camera, Home } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ITEMS = [
   { href: '/', label: 'ホーム', icon: Home },
-  { href: '/record', label: '記録', icon: PenLine },
+  { href: '/record', label: '撮る', icon: Camera },
   { href: '/records', label: '一覧', icon: BookOpen },
   { href: '/weekly', label: '週', icon: CalendarRange },
 ] as const

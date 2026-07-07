@@ -5,8 +5,13 @@ import { useState } from 'react'
 import { withBasePath } from '@/lib/base-path'
 import { cn } from '@/lib/utils'
 
-function isBrowserImage(src: string): boolean {
-  return src.startsWith('data:') || src.startsWith('blob:')
+function shouldRenderDirectly(src: string): boolean {
+  return (
+    src.startsWith('data:') ||
+    src.startsWith('blob:') ||
+    src.startsWith('http://') ||
+    src.startsWith('https://')
+  )
 }
 
 export function RecordImage({
@@ -23,9 +28,9 @@ export function RecordImage({
   const [failed, setFailed] = useState(false)
   const resolvedSrc = failed ? '/placeholder.svg' : src || '/placeholder.svg'
 
-  if (isBrowserImage(resolvedSrc)) {
+  if (shouldRenderDirectly(resolvedSrc)) {
     return (
-      // User-uploaded data URLs should render directly and survive static export.
+      // User-uploaded and Firebase Storage URLs should render directly.
       <img
         src={resolvedSrc}
         alt={alt}

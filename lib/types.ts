@@ -4,11 +4,21 @@ export type AiKeywords = {
 }
 
 export type AiInsight = {
-  discovery: string
-  margin: string
-  key: string
-  sentence: string
+  /** 写真の中で目立ったもの */
+  standout: string[]
+  /** AIが面白いと感じたポイント */
+  interesting: string[]
+  /** その場の雰囲気 */
+  atmosphere: string[]
+  /** 少し詩的、または観察日記のような短いコメント */
+  comment: string
   keywords?: AiKeywords
+
+  /** Legacy fields kept so older saved records can still render. */
+  discovery?: string
+  margin?: string
+  key?: string
+  sentence?: string
 }
 
 export type PhotoAnalysis = {
@@ -17,7 +27,6 @@ export type PhotoAnalysis = {
   focalArea?: string
   edgeDetail?: string
   microDetail?: string
-  commuteHint?: string
 }
 
 export type PhotoInput = {
@@ -30,17 +39,26 @@ export type VoiceAnalysis = {
   pace: string
   transcript?: string
   texture?: string
-  hint?: string
+}
+
+export type VoiceInput = {
+  src: string
+  analysis: VoiceAnalysis
 }
 
 export type DayRecord = {
   id: string
   date: string
+  createdAt: string
   photo: string
   hasPhoto?: boolean
   photoAnalysis?: PhotoAnalysis
-  note: string
+  audio?: string
+  hasAudio?: boolean
   hasVoice: boolean
   voiceAnalysis?: VoiceAnalysis
   insight: AiInsight
+
+  /** Legacy text note from older versions. New records do not use it. */
+  note?: string
 }

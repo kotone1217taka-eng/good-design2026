@@ -8,21 +8,24 @@ const observationSchema = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    discovery: {
-      type: 'string',
-      description: '写真や声から読み取った、今日の具体的な発見。',
+    standout: {
+      type: 'array',
+      description: '写真の中で目立ったもの。具体物、配置、色、端の要素など。',
+      items: { type: 'string' },
     },
-    margin: {
-      type: 'string',
-      description: '今日の余白を表す短い名詞句。',
+    interesting: {
+      type: 'array',
+      description: 'AIが写真を見て面白いと感じたポイント。評価や励ましではなく観察。',
+      items: { type: 'string' },
     },
-    key: {
-      type: 'string',
-      description: '明日の通学時間を見るための短い問い。',
+    atmosphere: {
+      type: 'array',
+      description: '写真と音声から感じたその場の雰囲気。',
+      items: { type: 'string' },
     },
-    sentence: {
+    comment: {
       type: 'string',
-      description: '明日の通学時間が少し違って見える一文。',
+      description: 'あとで見返したときに瞬間を思い出せる、短い観察日記のようなコメント。',
     },
     keywords: {
       type: 'object',
@@ -30,25 +33,19 @@ const observationSchema = {
       properties: {
         photo: {
           type: 'array',
-          description:
-            '写真から読み取れた具体物、場所、色、端の要素。3〜6個。',
-          items: {
-            type: 'string',
-          },
+          description: '写真から読み取れた具体的なキーワード。',
+          items: { type: 'string' },
         },
         voice: {
           type: 'array',
-          description:
-            '声やメモから読み取れた言葉、気配、音、身体感覚。1〜5個。',
-          items: {
-            type: 'string',
-          },
+          description: '音声から読み取れた補助的なキーワード。',
+          items: { type: 'string' },
         },
       },
       required: ['photo', 'voice'],
     },
   },
-  required: ['discovery', 'margin', 'key', 'sentence', 'keywords'],
+  required: ['standout', 'interesting', 'atmosphere', 'comment', 'keywords'],
 } as const
 
 export type OpenAiObservationInput = ObservationInput & {
@@ -88,24 +85,23 @@ function buildPrompt(input: OpenAiObservationInput): string {
   const photoAnalysis = input.photoAnalysis
 
   return [
-    'あなたは日記を励ます人ではなく、通学前の観察者です。',
-    '写真がある場合は、写真の内容を具体的に見てください。主役だけでなく、端、背景、植え込み、光、影、文字、小さな色の点、置かれ方を観察します。',
-    '見えないことは断定しないでください。写っている具体物から言える範囲で書きます。',
-    '声やメモは、感情を慰める材料ではなく、写真の見方を変える補助情報として扱います。',
-    '「今日も頑張った」「大丈夫」「素敵」「宝物」「特別な一日」のような励ましやテンプレートは禁止です。',
-    'keywords.photo には、写真から読み取れた具体物、場所、色、小さな要素を3〜6個入れてください。例: 駅の床、端の植え込み、白い花、夕方の光。',
-    'keywords.voice には、声やメモから読み取れた言葉、気配、身体感覚を1〜5個入れてください。例: 眠い、急いでいた、笑い声、雨の音。',
-    'sentence は一文だけ。28字から56字くらい。keywordsのうち1〜2個を使い、明日の通学時間に新しい発見をするための視点で終えてください。',
-    'key はアドバイスではなく、短い問いにしてください。',
+    'あなたは写真に対して静かに反応する観察者です。',
+    'ユーザーはアプリを開いて30秒以内に、その場で「面白いと思ったもの」を撮っています。',
+    '外に出すためではなく、あとで自分だけが見返すための個人的な記録です。',
+    '写真に写っている具体物、端にある小さな要素、色、光、配置、背景の違和感をよく見てください。',
+    '音声がある場合は、写真の説明ではなく補助情報として扱ってください。声の調子、言葉、周囲の音が写真の見え方を少し変える場合だけ反映します。',
+    '励まし、評価、人生のアドバイスは禁止です。「頑張った」「素敵」「大丈夫」のような言葉は使いません。',
+    '見えていないものを断定しないでください。具体的に見える範囲から観察してください。',
+    'comment は1つだけ、30〜70字程度。少し詩的でもよいですが、写真の具体的な要素を1つ以上含めてください。',
     '',
-    `メモ: ${clean(input.note) || 'なし'}`,
-    `声に残った言葉: ${clean(voice?.transcript) || 'なし'}`,
-    `声の長さ: ${voice ? `${voice.durationSeconds}秒 / ${voice.texture ?? voice.pace}` : 'なし'}`,
+    `音声の文字起こし: ${clean(voice?.transcript) || 'なし'}`,
+    `音声の長さ: ${voice ? `${voice.durationSeconds}秒 / ${voice.texture ?? voice.pace}` : 'なし'}`,
     `写真の簡易分析: ${
       photoAnalysis
         ? [
             photoAnalysis.microDetail,
             photoAnalysis.edgeDetail,
+            photoAnalysis.focalArea,
             photoAnalysis.brightness,
             photoAnalysis.tone,
           ]
@@ -130,6 +126,20 @@ function extractResponseText(data: ResponsesApiResponse): string {
   return ''
 }
 
+function sanitizeList(values: unknown, max = 6): string[] {
+  if (!Array.isArray(values)) return []
+
+  const seen = new Set<string>()
+  return values
+    .map((value) => clean(typeof value === 'string' ? value : ''))
+    .filter((value) => {
+      if (!value || seen.has(value)) return false
+      seen.add(value)
+      return true
+    })
+    .slice(0, max)
+}
+
 function parseInsight(text: string): AiInsight {
   const trimmed = text.trim()
   const jsonText = trimmed.startsWith('{')
@@ -142,42 +152,27 @@ function parseInsight(text: string): AiInsight {
 
   const parsed = JSON.parse(jsonText) as Partial<AiInsight>
   const keywords = {
-    photo: sanitizeKeywords(parsed.keywords?.photo),
-    voice: sanitizeKeywords(parsed.keywords?.voice),
+    photo: sanitizeList(parsed.keywords?.photo),
+    voice: sanitizeList(parsed.keywords?.voice),
   }
   const insight: AiInsight = {
-    discovery: clean(parsed.discovery),
-    margin: clean(parsed.margin),
-    key: clean(parsed.key),
-    sentence: clean(parsed.sentence),
+    standout: sanitizeList(parsed.standout, 5),
+    interesting: sanitizeList(parsed.interesting, 5),
+    atmosphere: sanitizeList(parsed.atmosphere, 4),
+    comment: clean(parsed.comment),
     keywords,
   }
 
   if (
-    !insight.discovery ||
-    !insight.margin ||
-    !insight.key ||
-    !insight.sentence ||
-    keywords.photo.length + keywords.voice.length === 0
+    !insight.standout.length ||
+    !insight.interesting.length ||
+    !insight.atmosphere.length ||
+    !insight.comment
   ) {
-    throw new OpenAiObservationError('AIの返答に必要な項目が足りませんでした。')
+    throw new OpenAiObservationError('AIの返答に必要な観察項目が足りませんでした。')
   }
 
   return insight
-}
-
-function sanitizeKeywords(values: unknown): string[] {
-  if (!Array.isArray(values)) return []
-
-  const seen = new Set<string>()
-  return values
-    .map((value) => clean(typeof value === 'string' ? value : ''))
-    .filter((value) => {
-      if (!value || seen.has(value)) return false
-      seen.add(value)
-      return true
-    })
-    .slice(0, 6)
 }
 
 export async function observeDayWithOpenAi(
@@ -227,12 +222,12 @@ export async function observeDayWithOpenAi(
       text: {
         format: {
           type: 'json_schema',
-          name: 'daily_observation',
+          name: 'personal_photo_observation',
           strict: true,
           schema: observationSchema,
         },
       },
-      max_output_tokens: 700,
+      max_output_tokens: 900,
     }),
   })
 
