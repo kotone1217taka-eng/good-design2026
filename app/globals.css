@@ -53,74 +53,74 @@
   --font-noto-sans-jp: 'Yu Gothic', 'Hiragino Sans', 'Meiryo', sans-serif;
   --font-noto-serif-jp: 'Yu Mincho', 'Hiragino Mincho ProN', serif;
   --font-geist-mono: Consolas, 'SFMono-Regular', monospace;
-  /* 朝が来る前の空気 — 薄い藍をふくんだ紙の白、淡いグレー、静かな藍 */
-  --background: oklch(0.966 0.006 252);
-  --foreground: oklch(0.3 0.026 260);
-  --card: oklch(0.994 0.004 250);
-  --card-foreground: oklch(0.3 0.026 260);
-  --popover: oklch(0.994 0.004 250);
-  --popover-foreground: oklch(0.3 0.026 260);
-  --primary: oklch(0.47 0.076 259);
-  --primary-foreground: oklch(0.985 0.004 250);
-  --secondary: oklch(0.942 0.009 250);
-  --secondary-foreground: oklch(0.36 0.03 260);
-  --muted: oklch(0.948 0.007 250);
-  --muted-foreground: oklch(0.52 0.022 256);
-  --accent: oklch(0.905 0.024 252);
-  --accent-foreground: oklch(0.34 0.036 260);
+  /* 夕方の体育館に入る光 — 紙の白、黒い文字、あたたかい橙 */
+  --background: oklch(0.978 0.018 78);
+  --foreground: oklch(0.22 0.018 65);
+  --card: oklch(0.994 0.01 78);
+  --card-foreground: oklch(0.22 0.018 65);
+  --popover: oklch(0.994 0.01 78);
+  --popover-foreground: oklch(0.22 0.018 65);
+  --primary: oklch(0.66 0.18 48);
+  --primary-foreground: oklch(0.995 0.012 78);
+  --secondary: oklch(0.94 0.035 72);
+  --secondary-foreground: oklch(0.31 0.035 58);
+  --muted: oklch(0.946 0.02 78);
+  --muted-foreground: oklch(0.48 0.027 64);
+  --accent: oklch(0.91 0.055 64);
+  --accent-foreground: oklch(0.32 0.05 48);
   --destructive: oklch(0.577 0.18 25);
-  --border: oklch(0.9 0.01 252);
-  --input: oklch(0.9 0.01 252);
-  --ring: oklch(0.58 0.055 256);
-  --chart-1: oklch(0.58 0.055 256);
-  --chart-2: oklch(0.68 0.045 235);
-  --chart-3: oklch(0.76 0.035 222);
-  --chart-4: oklch(0.5 0.05 262);
-  --chart-5: oklch(0.42 0.055 258);
+  --border: oklch(0.88 0.026 72);
+  --input: oklch(0.88 0.026 72);
+  --ring: oklch(0.7 0.13 50);
+  --chart-1: oklch(0.66 0.18 48);
+  --chart-2: oklch(0.57 0.08 145);
+  --chart-3: oklch(0.62 0.11 28);
+  --chart-4: oklch(0.7 0.11 82);
+  --chart-5: oklch(0.48 0.055 258);
   --radius: 0.875rem;
-  --sidebar: oklch(0.97 0.005 240);
-  --sidebar-foreground: oklch(0.32 0.025 255);
-  --sidebar-primary: oklch(0.52 0.066 250);
-  --sidebar-primary-foreground: oklch(0.99 0.003 240);
-  --sidebar-accent: oklch(0.92 0.022 240);
-  --sidebar-accent-foreground: oklch(0.36 0.035 255);
-  --sidebar-border: oklch(0.91 0.008 240);
-  --sidebar-ring: oklch(0.62 0.05 250);
+  --sidebar: oklch(0.97 0.018 78);
+  --sidebar-foreground: oklch(0.25 0.02 64);
+  --sidebar-primary: oklch(0.66 0.18 48);
+  --sidebar-primary-foreground: oklch(0.995 0.012 78);
+  --sidebar-accent: oklch(0.92 0.04 70);
+  --sidebar-accent-foreground: oklch(0.32 0.04 52);
+  --sidebar-border: oklch(0.88 0.026 72);
+  --sidebar-ring: oklch(0.7 0.13 50);
 }
 
 .dark {
-  /* 夜の帰り道 — 深い藍 */
-  --background: oklch(0.22 0.02 258);
-  --foreground: oklch(0.92 0.01 240);
-  --card: oklch(0.26 0.022 258);
-  --card-foreground: oklch(0.92 0.01 240);
-  --popover: oklch(0.26 0.022 258);
-  --popover-foreground: oklch(0.92 0.01 240);
-  --primary: oklch(0.72 0.06 240);
-  --primary-foreground: oklch(0.22 0.02 258);
-  --secondary: oklch(0.3 0.025 258);
-  --secondary-foreground: oklch(0.92 0.01 240);
-  --muted: oklch(0.3 0.022 258);
-  --muted-foreground: oklch(0.7 0.02 245);
-  --accent: oklch(0.34 0.03 255);
-  --accent-foreground: oklch(0.92 0.01 240);
+  /* 夜の体育館の木床 — 黒に近い茶と橙の灯り */
+  --background: oklch(0.18 0.025 52);
+  --foreground: oklch(0.94 0.02 78);
+  --card: oklch(0.23 0.03 52);
+  --card-foreground: oklch(0.94 0.02 78);
+  --popover: oklch(0.23 0.03 52);
+  --popover-foreground: oklch(0.94 0.02 78);
+  --primary: oklch(0.73 0.16 50);
+  --primary-foreground: oklch(0.18 0.025 52);
+  --secondary: oklch(0.29 0.035 54);
+  --secondary-foreground: oklch(0.94 0.02 78);
+  --muted: oklch(0.29 0.03 54);
+  --muted-foreground: oklch(0.76 0.035 78);
+  --accent: oklch(0.34 0.06 48);
+  --accent-foreground: oklch(0.94 0.02 78);
   --destructive: oklch(0.7 0.16 25);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.6 0.05 245);
-  --chart-1: oklch(0.72 0.06 240);
-  --chart-2: oklch(0.65 0.05 230);
-  --chart-3: oklch(0.58 0.05 220);
-  --chart-4: oklch(0.62 0.05 260);
-  --chart-5: oklch(0.5 0.05 255);
-  --sidebar: oklch(0.24 0.02 258);
-  --sidebar-foreground: oklch(0.92 0.01 240);
-  --sidebar-primary: oklch(0.72 0.06 240);
-  --sidebar-primary-foreground: oklch(0.22 0.02 258);
-  --sidebar-accent: oklch(0.34 0.03 255);
-  --sidebar-accent-foreground: oklch(0.92 0.01 240);
+  --ring: oklch(0.7 0.13 50);
+  --chart-1: oklch(0.73 0.16 50);
+  --chart-2: oklch(0.65 0.09 145);
+  --chart-3: oklch(0.7 0.12 28);
+  --chart-4: oklch(0.78 0.1 82);
+  --chart-5: oklch(0.68 0.07 258);
+  --sidebar: oklch(0.2 0.026 52);
+  --sidebar-foreground: oklch(0.94 0.02 78);
+  --sidebar-primary: oklch(0.73 0.16 50);
+  --sidebar-primary-foreground: oklch(0.18 0.025 52);
+  --sidebar-accent: oklch(0.34 0.06 48);
+  --sidebar-accent-foreground: oklch(0.94 0.02 78);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.6 0.05 245);
+  --sidebar-ring: oklch(0.7 0.13 50);
 }
 
 @layer base {
@@ -136,12 +136,12 @@
 }
 
 @layer utilities {
-  /* 朝が来る前の空気 — 上にほのかな藍、下に紙の白 */
+  /* ほのかな橙の光から紙の白へ */
   .atmosphere {
     background-image: linear-gradient(
       to bottom,
-      oklch(0.93 0.018 256) 0%,
-      oklch(0.955 0.009 252) 22%,
+      oklch(0.95 0.045 72) 0%,
+      oklch(0.968 0.026 78) 24%,
       var(--background) 60%
     );
   }

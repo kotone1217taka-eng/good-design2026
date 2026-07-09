@@ -4,12 +4,18 @@ import {
   getInsightInteresting,
   getInsightStandout,
 } from './insight-display'
+import { formatDateShort, getTodayIso } from './date'
 
 export type WeeklySummary = {
   words: { word: string; count: number }[]
   observations: string[]
+  voiceFragments: string[]
   tendency: string
   comment: string
+  rangeLabel: string
+  dayCount: number
+  photoDays: number
+  voiceDays: number
 }
 
 function compact(value: string, maxLength = 14): string {
@@ -28,9 +34,81 @@ function collectWords(record: DayRecord): string[] {
     .filter(Boolean)
 }
 
-export function buildWeeklySummary(records: DayRecord[]): WeeklySummary | null {
-  const week = records.slice(0, 7)
+function toDate(iso: string): Date {
+  return new Date(`${iso}T00:00:00`)
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function toIso(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function collectVoiceFragments(record: DayRecord): string[] {
+  const voice = record.voiceAnalysis
+  const transcriptParts = cleanTranscript(voice?.transcript)
+    .split(/[、。,.!?！？\n]/)
+    .map((part) => compact(part, 20))
+    .filter(Boolean)
+
+  return [
+    ...(record.insight.keywords?.voice ?? []),
+    voice?.texture,
+    voice?.pace,
+    ...transcriptParts,
+  ]
+    .map((value) => compact(value ?? '', 20))
+    .filter(Boolean)
+}
+
+function cleanTranscript(value: string | undefined): string {
+  return (value ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function unique(values: string[], max: number): string[] {
+  const seen = new Set<string>()
+  const result: string[] = []
+
+  values.forEach((value) => {
+    const cleaned = value.trim()
+    if (!cleaned || seen.has(cleaned)) return
+    seen.add(cleaned)
+    result.push(cleaned)
+  })
+
+  return result.slice(0, max)
+}
+
+export function getLastSevenDayRecords(
+  records: DayRecord[],
+  today = getTodayIso(),
+): DayRecord[] {
+  const end = toDate(today)
+  const start = addDays(end, -6)
+
+  return records
+    .filter((record) => {
+      const date = toDate(record.date)
+      return date >= start && date <= end
+    })
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+}
+
+export function buildWeeklySummary(
+  records: DayRecord[],
+  today = getTodayIso(),
+): WeeklySummary | null {
+  const week = getLastSevenDayRecords(records, today)
   if (!week.length) return null
+  const startIso = toIso(addDays(toDate(today), -6))
+  const rangeLabel = `${formatDateShort(startIso)} - ${formatDateShort(today)}`
 
   const counts = new Map<string, number>()
   week.flatMap(collectWords).forEach((word) => {
@@ -51,25 +129,34 @@ export function buildWeeklySummary(records: DayRecord[]): WeeklySummary | null {
     .filter(Boolean)
     .slice(0, 5)
 
+  const voiceFragments = unique(week.flatMap(collectVoiceFragments), 6)
   const topWord = words[0]?.word
   const photoDays = week.filter((record) => record.hasPhoto !== false).length
   const voiceDays = week.filter(
     (record) => record.hasAudio || record.hasVoice,
   ).length
 
-  const tendency = topWord
-    ? `この週は「${topWord}」のような細部が何度か現れています。大きな出来事より、画面の端や色の変化に反応している記録が多めです。`
-    : 'この週は、写真に写った細部を少しずつ集めるような記録になっています。'
+  const tendency =
+    week.length >= 2 && topWord
+      ? `直近7日間では「${topWord}」のような細部が繰り返し現れています。日によって主役は違っても、端の色や小さな違和感に視線が戻っています。`
+      : topWord
+        ? `直近7日間の記録はまだ${week.length}日分です。今は「${topWord}」が、この週を読み始める最初の手がかりになっています。`
+        : `直近7日間の記録はまだ${week.length}日分です。写真に写った細部を、これから少しずつ集めていく段階です。`
 
   const comment =
     voiceDays > 0
-      ? `${photoDays}枚の写真に、${voiceDays}件の音声が重なっています。写真だけでは残らない空気も少し混ざった週です。`
-      : `${photoDays}枚の写真が並んでいます。言葉より先に、目が引っかかったものが残った週です。`
+      ? `直近7日間のうち${week.length}日分、${photoDays}枚の写真と${voiceDays}件の声が残っています。声に出た言葉も、写真の見方を変える材料として読み込んでいます。`
+      : `直近7日間のうち${week.length}日分、${photoDays}枚の写真が残っています。声が入ると、写真の外側にあった反応も週の分析に加わります。`
 
   return {
     words,
     observations,
+    voiceFragments,
     tendency,
     comment,
+    rangeLabel,
+    dayCount: week.length,
+    photoDays,
+    voiceDays,
   }
 }

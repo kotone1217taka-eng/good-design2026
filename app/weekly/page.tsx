@@ -4,13 +4,13 @@ import type { ReactNode } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { RecordImage } from '@/components/record-image'
 import { useRecords } from '@/lib/records-store'
-import { buildWeeklySummary } from '@/lib/weekly'
+import { buildWeeklySummary, getLastSevenDayRecords } from '@/lib/weekly'
 import { formatDateShort } from '@/lib/date'
 
 export default function WeeklyPage() {
-  const { records } = useRecords()
-  const summary = buildWeeklySummary(records)
-  const week = records.slice(0, 7)
+  const { records, today } = useRecords()
+  const summary = buildWeeklySummary(records, today)
+  const week = getLastSevenDayRecords(records, today)
 
   return (
     <AppShell>
@@ -22,6 +22,12 @@ export default function WeeklyPage() {
           <h1 className="font-serif text-2xl font-light tracking-wide text-foreground">
             週の観察
           </h1>
+          {summary && (
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              {summary.rangeLabel} の7日間から、保存されている
+              {summary.dayCount}日分を読み取っています。
+            </p>
+          )}
         </header>
 
         {!summary ? (
@@ -51,38 +57,63 @@ export default function WeeklyPage() {
             </div>
 
             <WeeklyCard label="よく出たキーワード">
-              <ul className="flex flex-col gap-2.5">
-                {summary.words.map((word) => (
-                  <li key={word.word} className="flex items-center gap-3">
-                    <span className="w-24 shrink-0 text-sm text-card-foreground">
-                      {word.word}
-                    </span>
-                    <span className="flex flex-1 items-center gap-1.5">
-                      {Array.from({ length: Math.min(word.count, 7) }).map(
-                        (_, index) => (
-                          <span
-                            key={index}
-                            className="h-2 flex-1 rounded-full bg-primary/55"
-                            aria-hidden="true"
-                          />
-                        ),
-                      )}
-                      {Array.from({ length: Math.max(0, 7 - word.count) }).map(
-                        (_, index) => (
-                          <span
-                            key={`empty-${index}`}
-                            className="h-2 flex-1 rounded-full bg-secondary"
-                            aria-hidden="true"
-                          />
-                        ),
-                      )}
-                    </span>
-                    <span className="w-6 text-right font-mono text-xs text-muted-foreground">
-                      {word.count}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {summary.words.length ? (
+                <ul className="flex flex-col gap-2.5">
+                  {summary.words.map((word) => (
+                    <li key={word.word} className="flex items-center gap-3">
+                      <span className="w-24 shrink-0 text-sm text-card-foreground">
+                        {word.word}
+                      </span>
+                      <span className="flex flex-1 items-center gap-1.5">
+                        {Array.from({ length: Math.min(word.count, 7) }).map(
+                          (_, index) => (
+                            <span
+                              key={index}
+                              className="h-2 flex-1 rounded-full bg-primary/55"
+                              aria-hidden="true"
+                            />
+                          ),
+                        )}
+                        {Array.from({ length: Math.max(0, 7 - word.count) }).map(
+                          (_, index) => (
+                            <span
+                              key={`empty-${index}`}
+                              className="h-2 flex-1 rounded-full bg-secondary"
+                              aria-hidden="true"
+                            />
+                          ),
+                        )}
+                      </span>
+                      <span className="w-6 text-right font-mono text-xs text-muted-foreground">
+                        {word.count}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  まだ比較できるキーワードがありません。
+                </p>
+              )}
+            </WeeklyCard>
+
+            <WeeklyCard label="声から拾った手がかり">
+              {summary.voiceFragments.length ? (
+                <ul className="flex flex-wrap gap-2">
+                  {summary.voiceFragments.map((fragment) => (
+                    <li
+                      key={fragment}
+                      className="rounded-full bg-accent px-3 py-1.5 text-xs leading-relaxed text-accent-foreground"
+                    >
+                      {fragment}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  この7日間には、まだ音声から読める手がかりがありません。
+                </p>
+              )}
             </WeeklyCard>
 
             <WeeklyCard label="観察の断片">
@@ -114,6 +145,9 @@ export default function WeeklyPage() {
               </span>
               <p className="mt-3 font-serif text-lg font-light leading-relaxed text-balance text-foreground">
                 {summary.comment}
+              </p>
+              <p className="mt-4 text-xs tracking-wide text-muted-foreground">
+                写真 {summary.photoDays}日分 / 音声 {summary.voiceDays}日分
               </p>
             </div>
           </>

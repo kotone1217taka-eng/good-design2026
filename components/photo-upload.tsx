@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Camera, RotateCcw, Video } from 'lucide-react'
+import { Camera, Mic, RotateCcw, Video, ZoomIn } from 'lucide-react'
 import { RecordImage } from '@/components/record-image'
 import { cn } from '@/lib/utils'
 import type { PhotoAnalysis, PhotoInput } from '@/lib/types'
@@ -50,9 +50,17 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-function makePersistentPhotoSrcFromVideo(video: HTMLVideoElement): string {
+function makePersistentPhotoSrcFromVideo(
+  video: HTMLVideoElement,
+  zoom: number,
+): string {
   const sourceWidth = video.videoWidth || 1280
   const sourceHeight = video.videoHeight || 960
+  const captureZoom = Math.min(Math.max(zoom, 1), 3)
+  const cropWidth = sourceWidth / captureZoom
+  const cropHeight = sourceHeight / captureZoom
+  const sourceX = (sourceWidth - cropWidth) / 2
+  const sourceY = (sourceHeight - cropHeight) / 2
   const scale = Math.min(1, maxStoredImageSize / Math.max(sourceWidth, sourceHeight))
   const width = Math.max(1, Math.round(sourceWidth * scale))
   const height = Math.max(1, Math.round(sourceHeight * scale))
@@ -67,7 +75,7 @@ function makePersistentPhotoSrcFromVideo(video: HTMLVideoElement): string {
 
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, width, height)
-  ctx.drawImage(video, 0, 0, width, height)
+  ctx.drawImage(video, sourceX, sourceY, cropWidth, cropHeight, 0, 0, width, height)
 
   return canvas.toDataURL('image/jpeg', storedImageQuality)
 }
@@ -199,6 +207,7 @@ export function PhotoUpload({
   const [analysis, setAnalysis] = useState<PhotoAnalysis | null>(null)
   const [busy, setBusy] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
+  const [zoom, setZoom] = useState(1)
   const [error, setError] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -227,6 +236,7 @@ export function PhotoUpload({
 
     try {
       setError('')
+      setZoom(1)
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
@@ -252,7 +262,7 @@ export function PhotoUpload({
 
     setBusy(true)
     try {
-      const src = makePersistentPhotoSrcFromVideo(video)
+      const src = makePersistentPhotoSrcFromVideo(video, zoom)
       stopStream(streamRef.current)
       streamRef.current = null
       setCameraActive(false)
@@ -272,85 +282,121 @@ export function PhotoUpload({
     setPreview(null)
     setAnalysis(null)
     setError('')
+    setZoom(1)
     onChange(null)
   }
 
   const timerClass =
     timeLeft <= 5
-      ? 'bg-destructive text-destructive-foreground'
-      : 'bg-black/55 text-white'
+      ? 'border-destructive bg-destructive text-destructive-foreground'
+      : 'border-primary bg-black/35 text-white'
 
   return (
-    <div className="flex flex-col gap-2">
-      {preview ? (
-        <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl border border-border">
-          <RecordImage
-            src={preview}
-            alt="撮影した写真"
-            className="object-cover"
-          />
-          <span
-            className={cn(
-              'absolute right-3 top-3 min-w-14 rounded-full px-3 py-1.5 text-center font-mono text-lg tabular-nums backdrop-blur-sm',
-              timerClass,
-            )}
-          >
-            {timeLeft}
-          </span>
-          {analysis && (
-            <span className="absolute left-3 top-3 max-w-[70%] rounded-full bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative w-full max-w-[22rem] rounded-[2.1rem] bg-neutral-950 p-2 shadow-[0_18px_50px_rgb(82_43_12_/_0.28)]">
+        <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[1.65rem] bg-neutral-900">
+          {preview ? (
+            <RecordImage
+              src={preview}
+              alt="撮影した写真"
+              className="object-cover"
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              muted
+              playsInline
+              className={cn(
+                'size-full object-cover transition-[opacity,transform] duration-300',
+                cameraActive ? 'opacity-100' : 'opacity-0',
+              )}
+              style={{ transform: `scale(${zoom})` }}
+            />
+          )}
+
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/65 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/75 via-black/35 to-transparent" />
+
+          <div className="absolute inset-x-5 top-4 flex items-start justify-between gap-4 text-white">
+            <span className="pt-1 text-xs font-medium tracking-wide">
+              今日の記録
+            </span>
+            <span
+              className={cn(
+                'flex size-20 shrink-0 flex-col items-center justify-center rounded-full border-2 text-center shadow-lg backdrop-blur-sm',
+                timerClass,
+              )}
+              aria-live="polite"
+            >
+              <span className="font-mono text-3xl leading-none tabular-nums">
+                {timeLeft}
+              </span>
+              <span className="text-[10px]">秒</span>
+            </span>
+          </div>
+
+          {!preview && !cameraActive && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center text-white">
+              <span className="flex size-16 items-center justify-center rounded-full bg-white/12 text-primary backdrop-blur-sm">
+                <Video className="size-7" aria-hidden="true" />
+              </span>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium">
+                  30秒のカメラを開く
+                </span>
+                <span className="text-[11px] leading-relaxed text-white/70">
+                  アプリ側ではシャッター音を鳴らしません
+                </span>
+              </div>
+            </div>
+          )}
+
+          {preview && analysis && (
+            <span className="absolute left-5 top-24 max-w-[70%] rounded-full bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
               {analysis.microDetail ?? `${analysis.brightness}光`}
             </span>
           )}
-          <button
-            type="button"
-            onClick={reset}
-            disabled={disabled}
-            className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur-sm transition-colors hover:bg-black/60 disabled:opacity-50"
-          >
-            <RotateCcw className="size-3.5" aria-hidden="true" />
-            撮り直す
-          </button>
-        </div>
-      ) : (
-        <div className="relative aspect-[5/4] w-full overflow-hidden rounded-2xl border border-border bg-card">
-          <video
-            ref={videoRef}
-            muted
-            playsInline
-            className={cn(
-              'size-full object-cover',
-              cameraActive ? 'opacity-100' : 'opacity-0',
-            )}
-          />
-          <span
-            className={cn(
-              'absolute right-3 top-3 min-w-14 rounded-full px-3 py-1.5 text-center font-mono text-lg tabular-nums backdrop-blur-sm',
-              timerClass,
-            )}
-          >
-            {timeLeft}
-          </span>
-          {!cameraActive && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center text-muted-foreground">
-              <span className="flex size-14 items-center justify-center rounded-full bg-secondary">
-                <Video className="size-6" aria-hidden="true" />
-              </span>
-              <span className="text-sm">
-                アプリ内カメラで撮る
-              </span>
-              <span className="text-[11px] leading-relaxed tracking-wide text-muted-foreground">
-                アプリ側ではシャッター音を鳴らしません
+
+          {!preview && cameraActive && (
+            <div className="absolute inset-x-6 bottom-28 flex items-center gap-3 rounded-full bg-black/35 px-4 py-3 text-white backdrop-blur-sm">
+              <ZoomIn className="size-4 text-primary" aria-hidden="true" />
+              <input
+                type="range"
+                min="1"
+                max="3"
+                step="0.1"
+                value={zoom}
+                onChange={(event) => setZoom(Number(event.target.value))}
+                className="h-1 flex-1 accent-primary"
+                aria-label="ズーム"
+              />
+              <span className="w-9 text-right font-mono text-xs tabular-nums">
+                {zoom.toFixed(1)}
               </span>
             </div>
           )}
-          <div className="absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-black/55 to-transparent px-4 pb-4 pt-12">
-            {cameraActive ? (
+
+          <div className="absolute inset-x-6 bottom-6 flex items-end justify-between">
+            <span className="flex size-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm">
+              <Mic className="size-5" aria-hidden="true" />
+            </span>
+
+            {preview ? (
+              <button
+                type="button"
+                onClick={reset}
+                disabled={disabled}
+                className="flex items-center gap-1.5 rounded-full bg-white px-4 py-3 text-sm text-foreground shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+              >
+                <RotateCcw className="size-4" aria-hidden="true" />
+                撮り直す
+              </button>
+            ) : cameraActive ? (
               <button
                 type="button"
                 onClick={capturePhoto}
                 disabled={disabled || busy}
-                className="flex size-16 items-center justify-center rounded-full border-4 border-white bg-white/85 text-foreground shadow-lg transition-transform active:scale-95 disabled:opacity-50"
+                className="flex size-20 items-center justify-center rounded-full border-4 border-white/80 bg-white text-foreground shadow-[0_0_0_6px_rgb(249_115_22_/_0.45)] transition-transform active:scale-95 disabled:opacity-50"
                 aria-label="写真を撮る"
               >
                 <Camera className="size-7" aria-hidden="true" />
@@ -360,14 +406,25 @@ export function PhotoUpload({
                 type="button"
                 onClick={startCamera}
                 disabled={disabled || busy}
-                className="rounded-full bg-primary px-5 py-3 text-sm text-primary-foreground shadow-lg transition-opacity hover:opacity-90 disabled:opacity-50"
+                className="rounded-full bg-primary px-5 py-3 text-sm text-primary-foreground shadow-lg transition-transform active:scale-95 disabled:opacity-50"
               >
-                カメラを開始
+                開始
               </button>
             )}
+
+            <span className="flex h-8 w-20 items-end justify-center gap-0.5 text-primary">
+              {Array.from({ length: 12 }).map((_, index) => (
+                <span
+                  key={index}
+                  className="w-0.5 rounded-full bg-current opacity-80"
+                  style={{ height: `${5 + ((index * 5 + timeLeft) % 18)}px` }}
+                  aria-hidden="true"
+                />
+              ))}
+            </span>
           </div>
         </div>
-      )}
+      </div>
       {error && (
         <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-relaxed text-destructive">
           {error}
