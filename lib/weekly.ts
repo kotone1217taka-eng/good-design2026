@@ -6,18 +6,15 @@ import {
 } from './insight-display'
 import { formatDateShort, getTodayIso } from './date'
 
-export type WeeklyTrend = {
-  title: string
-  detail: string
-}
+export type WeeklyTrend = string
 
 export type WeeklySummary = {
   topicTrends: WeeklyTrend[]
   photoTrends: WeeklyTrend[]
   voiceTrends: WeeklyTrend[]
+  insights: string[]
   observations: string[]
   voiceFragments: string[]
-  tendency: string
   rangeLabel: string
 }
 
@@ -102,7 +99,7 @@ function unique(values: string[], max: number): string[] {
   return result.slice(0, max)
 }
 
-function ranked(values: string[], max: number): Array<{ value: string; count: number }> {
+function ranked(values: string[], max: number): string[] {
   const counts = new Map<string, number>()
   values.forEach((value) => {
     const cleaned = value.trim()
@@ -111,38 +108,64 @@ function ranked(values: string[], max: number): Array<{ value: string; count: nu
   })
 
   return [...counts.entries()]
-    .map(([value, count]) => ({ value, count }))
-    .sort((a, b) => b.count - a.count)
+    .sort((a, b) => b[1] - a[1])
+    .map(([value]) => value)
     .slice(0, max)
 }
 
-function trendDetail(kind: 'topic' | 'photo' | 'voice', count: number): string {
-  if (kind === 'topic') {
-    return count >= 2
-      ? '複数の記録で近い関心として出ています。'
-      : 'この週の見返しで最初に引っかかる話題です。'
-  }
-
-  if (kind === 'photo') {
-    return count >= 2
-      ? '写真の写り方として繰り返し現れています。'
-      : '写真の雰囲気を読むための手がかりです。'
-  }
-
-  return count >= 2
-    ? '声の中で繰り返し出ていた関心です。'
-    : '写真だけでは見えにくい、本人の反応です。'
+function buildTrends(values: string[], max = 4): WeeklyTrend[] {
+  return ranked(values, max)
 }
 
-function buildTrends(
-  values: string[],
-  kind: 'topic' | 'photo' | 'voice',
-  max = 4,
-): WeeklyTrend[] {
-  return ranked(values, max).map(({ value, count }) => ({
-    title: value,
-    detail: trendDetail(kind, count),
-  }))
+function buildInsights({
+  topicTrends,
+  photoTrends,
+  voiceTrends,
+  observations,
+}: {
+  topicTrends: WeeklyTrend[]
+  photoTrends: WeeklyTrend[]
+  voiceTrends: WeeklyTrend[]
+  observations: string[]
+}): string[] {
+  const insights: string[] = []
+  const topic = topicTrends[0]
+  const nextTopic = topicTrends[1]
+  const photo = photoTrends[0]
+  const nextPhoto = photoTrends[1]
+  const voice = voiceTrends[0]
+
+  if (topic && photo) {
+    insights.push(
+      `「${topic}」という関心と、「${photo}」という写り方が近くに出ている。何を撮ったかだけでなく、どう見えたかも残っている週。`,
+    )
+  }
+
+  if (voice && topic) {
+    insights.push(
+      `声の中の「${voice}」が、写真の中の「${topic}」をあとから指差している。`,
+    )
+  }
+
+  if (photo && nextPhoto) {
+    insights.push(
+      `写真では「${photo}」と「${nextPhoto}」が並んでいる。主役よりも、光や配置のくせが記憶に残りやすい。`,
+    )
+  }
+
+  if (!insights.length && topic && nextTopic) {
+    insights.push(
+      `今週は「${topic}」と「${nextTopic}」が近い場所にある。別々の写真でも、似たところに目が止まっている。`,
+    )
+  }
+
+  if (!insights.length && observations[0]) {
+    insights.push(
+      `最初に残っているのは「${compact(observations[0], 28)}」。大きな出来事より、小さな違和感から記録が始まっている。`,
+    )
+  }
+
+  return insights.slice(0, 3)
 }
 
 export function getLastSevenDayRecords(
@@ -179,28 +202,23 @@ export function buildWeeklySummary(
     .slice(0, 5)
 
   const voiceFragments = unique(week.flatMap(collectVoiceFragments), 6)
-  const topicTrends = buildTrends(week.flatMap(collectTopicWords), 'topic')
-  const photoTrends = buildTrends(week.flatMap(collectPhotoTrendWords), 'photo')
-  const voiceTrends = buildTrends(voiceFragments, 'voice', 3)
-  const topicLine = topicTrends.length
-    ? `話題は「${topicTrends.map((trend) => trend.title).slice(0, 2).join('」「')}」あたりに集まっています。`
-    : '話題のまとまりは、まだはっきり出ていません。'
-  const photoLine = photoTrends.length
-    ? `写真は「${photoTrends.map((trend) => trend.title).slice(0, 2).join('」「')}」が目立ちます。`
-    : '写真の色や構図の傾向は、まだ読み取り中です。'
-  const voiceLine = voiceTrends.length
-    ? `声では「${voiceTrends[0].title}」が、何を面白いと感じたかを補っています。`
-    : '声から読み取れる関心は、まだ少なめです。'
-
-  const tendency = `${topicLine}${photoLine}${voiceLine}`
+  const topicTrends = buildTrends(week.flatMap(collectTopicWords))
+  const photoTrends = buildTrends(week.flatMap(collectPhotoTrendWords))
+  const voiceTrends = buildTrends(voiceFragments, 3)
+  const insights = buildInsights({
+    topicTrends,
+    photoTrends,
+    voiceTrends,
+    observations,
+  })
 
   return {
     topicTrends,
     photoTrends,
     voiceTrends,
+    insights,
     observations,
     voiceFragments,
-    tendency,
     rangeLabel,
   }
 }

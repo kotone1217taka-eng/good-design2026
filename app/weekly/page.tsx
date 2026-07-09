@@ -61,7 +61,7 @@ export default function WeeklyPage() {
 
             <WeeklyCard label="多かった話題">
               {summary.topicTrends.length ? (
-                <TrendList trends={summary.topicTrends} />
+                <BubbleList trends={summary.topicTrends} />
               ) : (
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   まだ話題のまとまりは見えていません。
@@ -71,7 +71,7 @@ export default function WeeklyPage() {
 
             <WeeklyCard label="写真の傾向">
               {summary.photoTrends.length ? (
-                <TrendList trends={summary.photoTrends} />
+                <BubbleList trends={summary.photoTrends} />
               ) : (
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   まだ写真の色や構図の傾向は見えていません。
@@ -81,7 +81,7 @@ export default function WeeklyPage() {
 
             <WeeklyCard label="声に出ていた関心">
               {summary.voiceTrends.length ? (
-                <TrendList trends={summary.voiceTrends} />
+                <BubbleList trends={summary.voiceTrends} />
               ) : (
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   この期間には、まだ音声から読める関心がありません。
@@ -106,10 +106,23 @@ export default function WeeklyPage() {
               </ul>
             </WeeklyCard>
 
-            <WeeklyCard label="今週の傾向">
-              <p className="text-[15px] leading-relaxed text-pretty text-card-foreground">
-                {summary.tendency}
-              </p>
+            <WeeklyCard label="週のインサイト">
+              {summary.insights.length ? (
+                <ul className="flex flex-col gap-3">
+                  {summary.insights.map((insight) => (
+                    <li
+                      key={insight}
+                      className="rounded-2xl bg-secondary px-4 py-3 text-[15px] leading-relaxed text-pretty text-secondary-foreground"
+                    >
+                      {insight}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  まだインサイトにできるまとまりはありません。
+                </p>
+              )}
             </WeeklyCard>
           </>
         )}
@@ -135,17 +148,15 @@ function WeeklyCard({
   )
 }
 
-function TrendList({ trends }: { trends: WeeklyTrend[] }) {
+function BubbleList({ trends }: { trends: WeeklyTrend[] }) {
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="flex flex-wrap gap-2.5">
       {trends.map((trend) => (
-        <li key={trend.title} className="flex flex-col gap-1.5">
-          <span className="text-[15px] font-medium leading-relaxed text-card-foreground">
-            {trend.title}
-          </span>
-          <span className="text-sm leading-relaxed text-muted-foreground">
-            {trend.detail}
-          </span>
+        <li
+          key={trend}
+          className="relative rounded-[1.25rem] border border-primary/20 bg-accent px-4 py-2.5 text-sm leading-relaxed text-accent-foreground shadow-sm before:absolute before:-bottom-1 before:left-5 before:size-2.5 before:rotate-45 before:border-b before:border-r before:border-primary/20 before:bg-accent"
+        >
+          {trend}
         </li>
       ))}
     </ul>
