@@ -6,16 +6,19 @@ import {
 } from './insight-display'
 import { formatDateShort, getTodayIso } from './date'
 
+export type WeeklyTrend = {
+  title: string
+  detail: string
+}
+
 export type WeeklySummary = {
-  words: { word: string; count: number }[]
+  topicTrends: WeeklyTrend[]
+  photoTrends: WeeklyTrend[]
+  voiceTrends: WeeklyTrend[]
   observations: string[]
   voiceFragments: string[]
   tendency: string
-  comment: string
   rangeLabel: string
-  dayCount: number
-  photoDays: number
-  voiceDays: number
 }
 
 function compact(value: string, maxLength = 14): string {
@@ -23,14 +26,27 @@ function compact(value: string, maxLength = 14): string {
   return cleaned.length > maxLength ? `${cleaned.slice(0, maxLength)}...` : cleaned
 }
 
-function collectWords(record: DayRecord): string[] {
+function collectTopicWords(record: DayRecord): string[] {
   return [
     ...(record.insight.keywords?.photo ?? []),
     ...(record.insight.keywords?.voice ?? []),
     ...getInsightStandout(record.insight),
     ...getInsightInteresting(record.insight),
   ]
-    .map((word) => compact(word))
+    .map((word) => compact(word, 18))
+    .filter(Boolean)
+}
+
+function collectPhotoTrendWords(record: DayRecord): string[] {
+  const photo = record.photoAnalysis
+  return [
+    photo?.tone ? `${photo.tone}の色味` : undefined,
+    photo?.brightness ? `${photo.brightness}光` : undefined,
+    photo?.focalArea ? `${photo.focalArea}に視線が寄る` : undefined,
+    photo?.edgeDetail,
+    photo?.microDetail,
+  ]
+    .map((word) => compact(word ?? '', 20))
     .filter(Boolean)
 }
 
@@ -86,6 +102,49 @@ function unique(values: string[], max: number): string[] {
   return result.slice(0, max)
 }
 
+function ranked(values: string[], max: number): Array<{ value: string; count: number }> {
+  const counts = new Map<string, number>()
+  values.forEach((value) => {
+    const cleaned = value.trim()
+    if (!cleaned) return
+    counts.set(cleaned, (counts.get(cleaned) ?? 0) + 1)
+  })
+
+  return [...counts.entries()]
+    .map(([value, count]) => ({ value, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, max)
+}
+
+function trendDetail(kind: 'topic' | 'photo' | 'voice', count: number): string {
+  if (kind === 'topic') {
+    return count >= 2
+      ? '複数の記録で近い関心として出ています。'
+      : 'この週の見返しで最初に引っかかる話題です。'
+  }
+
+  if (kind === 'photo') {
+    return count >= 2
+      ? '写真の写り方として繰り返し現れています。'
+      : '写真の雰囲気を読むための手がかりです。'
+  }
+
+  return count >= 2
+    ? '声の中で繰り返し出ていた関心です。'
+    : '写真だけでは見えにくい、本人の反応です。'
+}
+
+function buildTrends(
+  values: string[],
+  kind: 'topic' | 'photo' | 'voice',
+  max = 4,
+): WeeklyTrend[] {
+  return ranked(values, max).map(({ value, count }) => ({
+    title: value,
+    detail: trendDetail(kind, count),
+  }))
+}
+
 export function getLastSevenDayRecords(
   records: DayRecord[],
   today = getTodayIso(),
@@ -110,16 +169,6 @@ export function buildWeeklySummary(
   const startIso = toIso(addDays(toDate(today), -6))
   const rangeLabel = `${formatDateShort(startIso)} - ${formatDateShort(today)}`
 
-  const counts = new Map<string, number>()
-  week.flatMap(collectWords).forEach((word) => {
-    counts.set(word, (counts.get(word) ?? 0) + 1)
-  })
-
-  const words = [...counts.entries()]
-    .map(([word, count]) => ({ word, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
-
   const observations = week
     .flatMap((record) => [
       getInsightComment(record.insight),
@@ -130,33 +179,28 @@ export function buildWeeklySummary(
     .slice(0, 5)
 
   const voiceFragments = unique(week.flatMap(collectVoiceFragments), 6)
-  const topWord = words[0]?.word
-  const photoDays = week.filter((record) => record.hasPhoto !== false).length
-  const voiceDays = week.filter(
-    (record) => record.hasAudio || record.hasVoice,
-  ).length
+  const topicTrends = buildTrends(week.flatMap(collectTopicWords), 'topic')
+  const photoTrends = buildTrends(week.flatMap(collectPhotoTrendWords), 'photo')
+  const voiceTrends = buildTrends(voiceFragments, 'voice', 3)
+  const topicLine = topicTrends.length
+    ? `話題は「${topicTrends.map((trend) => trend.title).slice(0, 2).join('」「')}」あたりに集まっています。`
+    : '話題のまとまりは、まだはっきり出ていません。'
+  const photoLine = photoTrends.length
+    ? `写真は「${photoTrends.map((trend) => trend.title).slice(0, 2).join('」「')}」が目立ちます。`
+    : '写真の色や構図の傾向は、まだ読み取り中です。'
+  const voiceLine = voiceTrends.length
+    ? `声では「${voiceTrends[0].title}」が、何を面白いと感じたかを補っています。`
+    : '声から読み取れる関心は、まだ少なめです。'
 
-  const tendency =
-    week.length >= 2 && topWord
-      ? `直近7日間では「${topWord}」のような細部が繰り返し現れています。日によって主役は違っても、端の色や小さな違和感に視線が戻っています。`
-      : topWord
-        ? `直近7日間の記録はまだ${week.length}日分です。今は「${topWord}」が、この週を読み始める最初の手がかりになっています。`
-        : `直近7日間の記録はまだ${week.length}日分です。写真に写った細部を、これから少しずつ集めていく段階です。`
-
-  const comment =
-    voiceDays > 0
-      ? `直近7日間のうち${week.length}日分、${photoDays}枚の写真と${voiceDays}件の声が残っています。声に出た言葉も、写真の見方を変える材料として読み込んでいます。`
-      : `直近7日間のうち${week.length}日分、${photoDays}枚の写真が残っています。声が入ると、写真の外側にあった反応も週の分析に加わります。`
+  const tendency = `${topicLine}${photoLine}${voiceLine}`
 
   return {
-    words,
+    topicTrends,
+    photoTrends,
+    voiceTrends,
     observations,
     voiceFragments,
     tendency,
-    comment,
     rangeLabel,
-    dayCount: week.length,
-    photoDays,
-    voiceDays,
   }
 }

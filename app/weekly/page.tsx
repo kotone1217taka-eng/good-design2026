@@ -4,7 +4,11 @@ import type { ReactNode } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { RecordImage } from '@/components/record-image'
 import { useRecords } from '@/lib/records-store'
-import { buildWeeklySummary, getLastSevenDayRecords } from '@/lib/weekly'
+import {
+  buildWeeklySummary,
+  getLastSevenDayRecords,
+  type WeeklyTrend,
+} from '@/lib/weekly'
 import { formatDateShort } from '@/lib/date'
 
 export default function WeeklyPage() {
@@ -24,8 +28,7 @@ export default function WeeklyPage() {
           </h1>
           {summary && (
             <p className="text-sm leading-relaxed text-muted-foreground">
-              {summary.rangeLabel} の7日間から、保存されている
-              {summary.dayCount}日分を読み取っています。
+              {summary.rangeLabel} の記録から、話題・写真・声の傾向を見ています。
             </p>
           )}
         </header>
@@ -56,62 +59,32 @@ export default function WeeklyPage() {
                 ))}
             </div>
 
-            <WeeklyCard label="よく出たキーワード">
-              {summary.words.length ? (
-                <ul className="flex flex-col gap-2.5">
-                  {summary.words.map((word) => (
-                    <li key={word.word} className="flex items-center gap-3">
-                      <span className="w-24 shrink-0 text-sm text-card-foreground">
-                        {word.word}
-                      </span>
-                      <span className="flex flex-1 items-center gap-1.5">
-                        {Array.from({ length: Math.min(word.count, 7) }).map(
-                          (_, index) => (
-                            <span
-                              key={index}
-                              className="h-2 flex-1 rounded-full bg-primary/55"
-                              aria-hidden="true"
-                            />
-                          ),
-                        )}
-                        {Array.from({ length: Math.max(0, 7 - word.count) }).map(
-                          (_, index) => (
-                            <span
-                              key={`empty-${index}`}
-                              className="h-2 flex-1 rounded-full bg-secondary"
-                              aria-hidden="true"
-                            />
-                          ),
-                        )}
-                      </span>
-                      <span className="w-6 text-right font-mono text-xs text-muted-foreground">
-                        {word.count}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+            <WeeklyCard label="多かった話題">
+              {summary.topicTrends.length ? (
+                <TrendList trends={summary.topicTrends} />
               ) : (
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  まだ比較できるキーワードがありません。
+                  まだ話題のまとまりは見えていません。
                 </p>
               )}
             </WeeklyCard>
 
-            <WeeklyCard label="声から拾った手がかり">
-              {summary.voiceFragments.length ? (
-                <ul className="flex flex-wrap gap-2">
-                  {summary.voiceFragments.map((fragment) => (
-                    <li
-                      key={fragment}
-                      className="rounded-full bg-accent px-3 py-1.5 text-xs leading-relaxed text-accent-foreground"
-                    >
-                      {fragment}
-                    </li>
-                  ))}
-                </ul>
+            <WeeklyCard label="写真の傾向">
+              {summary.photoTrends.length ? (
+                <TrendList trends={summary.photoTrends} />
               ) : (
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  この7日間には、まだ音声から読める手がかりがありません。
+                  まだ写真の色や構図の傾向は見えていません。
+                </p>
+              )}
+            </WeeklyCard>
+
+            <WeeklyCard label="声に出ていた関心">
+              {summary.voiceTrends.length ? (
+                <TrendList trends={summary.voiceTrends} />
+              ) : (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  この期間には、まだ音声から読める関心がありません。
                 </p>
               )}
             </WeeklyCard>
@@ -138,18 +111,6 @@ export default function WeeklyPage() {
                 {summary.tendency}
               </p>
             </WeeklyCard>
-
-            <div className="rounded-2xl border border-border bg-accent/40 px-6 py-8 text-center">
-              <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                保存された空気
-              </span>
-              <p className="mt-3 font-serif text-lg font-light leading-relaxed text-balance text-foreground">
-                {summary.comment}
-              </p>
-              <p className="mt-4 text-xs tracking-wide text-muted-foreground">
-                写真 {summary.photoDays}日分 / 音声 {summary.voiceDays}日分
-              </p>
-            </div>
           </>
         )}
       </div>
@@ -171,5 +132,22 @@ function WeeklyCard({
       </h2>
       {children}
     </section>
+  )
+}
+
+function TrendList({ trends }: { trends: WeeklyTrend[] }) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {trends.map((trend) => (
+        <li key={trend.title} className="flex flex-col gap-1.5">
+          <span className="text-[15px] font-medium leading-relaxed text-card-foreground">
+            {trend.title}
+          </span>
+          <span className="text-sm leading-relaxed text-muted-foreground">
+            {trend.detail}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }
