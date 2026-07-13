@@ -29,13 +29,14 @@ export default function HomePage() {
       <div className="flex flex-col gap-9">
         <header className="flex flex-col gap-3">
           <p className="text-xs tracking-[0.2em] text-muted-foreground">
-            PERSONAL PHOTO OBSERVATION
+            PERSONAL MARGIN CAMERA
           </p>
           <h1 className="font-serif text-3xl font-light tracking-wide text-foreground">
-            30秒の観察
+            <span className="block">30秒の余白。</span>
+            <span className="block">同じ毎日を、記憶に残る一日に。</span>
           </h1>
           <p className="max-w-[19rem] text-sm leading-relaxed text-pretty text-muted-foreground">
-            アプリを開いたら、その場で面白いと思ったものを撮る。AIが写真を見て、気づいたことを個人的な記録として残します。
+            その場で気になったものを撮り、短く声を残す。AIが写真と声から背景を読み、あとで見返せる個人的な記憶にします。
           </p>
         </header>
 
@@ -80,10 +81,10 @@ export default function HomePage() {
               </span>
               <div className="flex flex-col">
                 <span className="text-sm text-card-foreground">
-                  この日の観察は保存済みです
+                  この日の余白は保存済みです
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  写真とAIの観察結果をひらく
+                  写真とAIの読み取りをひらく
                 </span>
               </div>
             </div>
@@ -99,7 +100,7 @@ export default function HomePage() {
             className="h-14 rounded-2xl text-base font-normal tracking-wide"
           >
             <Link href="/record">
-              30秒の記録を始める
+              30秒の余白を撮る
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </Button>
@@ -124,7 +125,7 @@ export default function HomePage() {
             </div>
             <div className="flex flex-col gap-4 px-5 py-5">
               <h2 id="latest-heading" className="text-sm font-medium tracking-wide text-foreground">
-                直近のAI観察
+                直近の余白
               </h2>
               <p className="font-serif text-lg font-light leading-relaxed text-pretty text-card-foreground">
                 {getInsightComment(latest.insight)}

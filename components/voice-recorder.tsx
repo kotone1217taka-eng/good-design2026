@@ -5,6 +5,8 @@ import { Mic, RotateCcw, Square, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { VoiceAnalysis, VoiceInput } from '@/lib/types'
 
+export type VoiceRecorderStatus = 'idle' | 'recording' | 'done'
+
 type SpeechRecognitionAlternativeLike = {
   transcript: string
 }
@@ -108,11 +110,15 @@ export function VoiceRecorder({
   disabled = false,
   autoStartKey = 0,
   required = false,
+  variant = 'card',
+  onStatusChange,
 }: {
   onChange: (voice: VoiceInput | null) => void
   disabled?: boolean
   autoStartKey?: number
   required?: boolean
+  variant?: 'card' | 'camera'
+  onStatusChange?: (status: VoiceRecorderStatus) => void
 }) {
   const [recording, setRecording] = useState(false)
   const [seconds, setSeconds] = useState(0)
@@ -173,6 +179,10 @@ export function VoiceRecorder({
   const mmss = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(
     seconds % 60,
   ).padStart(2, '0')}`
+
+  useEffect(() => {
+    onStatusChange?.(voice ? 'done' : recording ? 'recording' : 'idle')
+  }, [onStatusChange, recording, voice])
 
   function startRecognition() {
     const SpeechRecognition = getSpeechRecognition()
@@ -296,6 +306,94 @@ export function VoiceRecorder({
     setSeconds(0)
     setError('')
     onChange(null)
+  }
+
+  if (variant === 'camera') {
+    return (
+      <div className="rounded-[1.6rem] border border-white/15 bg-black/55 px-4 py-3 text-white shadow-2xl backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          {!voice ? (
+            <button
+              type="button"
+              onClick={() => (recording ? stop() : start())}
+              disabled={disabled && !recording}
+              aria-label={recording ? '録音を止める' : '音声を録る'}
+              className={cn(
+                'flex size-12 shrink-0 items-center justify-center rounded-full transition-all disabled:opacity-50',
+                recording
+                  ? 'bg-white text-primary ring-4 ring-primary/30'
+                  : 'bg-primary text-primary-foreground',
+              )}
+            >
+              {recording ? (
+                <Square className="size-5 fill-current" aria-hidden="true" />
+              ) : (
+                <Mic className="size-5" aria-hidden="true" />
+              )}
+            </button>
+          ) : (
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-primary">
+              <Volume2 className="size-5" aria-hidden="true" />
+            </span>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium tracking-wide">
+              {voice
+                ? '声も保存されました'
+                : recording
+                  ? '録音中'
+                  : '写真のあとに声を残す'}
+            </p>
+            <p className="mt-0.5 truncate text-[11px] leading-relaxed text-white/70">
+              {voice?.analysis.transcript ||
+                voice?.analysis.texture ||
+                '何が面白かったか、何を撮ったかを短く話してください'}
+            </p>
+          </div>
+
+          <span className="font-mono text-xs tabular-nums text-white/70">
+            {mmss}
+          </span>
+        </div>
+
+        {recording && (
+          <div className="mt-3 flex h-6 items-center justify-center gap-1" aria-hidden="true">
+            {Array.from({ length: 16 }).map((_, index) => (
+              <span
+                key={index}
+                className="w-0.5 animate-pulse rounded-full bg-primary"
+                style={{
+                  height: `${6 + ((index * 7 + seconds * 3) % 18)}px`,
+                  animationDelay: `${index * 0.05}s`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {voice && (
+          <div className="mt-3 flex items-center gap-2">
+            <audio src={voice.src} controls className="h-8 min-w-0 flex-1" />
+            <button
+              type="button"
+              onClick={reset}
+              disabled={disabled}
+              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 disabled:opacity-50"
+              aria-label="録り直す"
+            >
+              <RotateCcw className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+        )}
+
+        {error && (
+          <p className="mt-2 text-[11px] leading-relaxed text-destructive-foreground">
+            {error}
+          </p>
+        )}
+      </div>
+    )
   }
 
   return (

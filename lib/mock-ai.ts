@@ -61,6 +61,37 @@ function voiceCue(voice: VoiceAnalysis | undefined): string {
   return ''
 }
 
+function inferBackground(
+  photo: PhotoAnalysis | undefined,
+  voice: VoiceAnalysis | undefined,
+): string {
+  const transcript = clean(voice?.transcript)
+
+  if (/駅|電車|ホーム|バス|通学|帰り|道|歩/.test(transcript)) {
+    return '移動の途中にある場所のように見える'
+  }
+  if (/学校|授業|教室|部活|練習|体育館|ロッカー|グラウンド/.test(transcript)) {
+    return '学校や練習の前後に残った場面かもしれない'
+  }
+  if (/店|コンビニ|自販機|買/.test(transcript)) {
+    return '立ち寄った場所の端にある場面のように見える'
+  }
+  if (/家|部屋|机|窓/.test(transcript)) {
+    return '家や部屋の中の静かな時間かもしれない'
+  }
+  if (photo?.tone?.includes('緑')) {
+    return '屋外の植え込みや道端に近い場所かもしれない'
+  }
+  if (photo?.brightness?.includes('暗')) {
+    return '帰り道や室内の暗がりに近い時間かもしれない'
+  }
+  if (photo?.brightness?.includes('明')) {
+    return '昼間の光が入る場所のように見える'
+  }
+
+  return 'いつもの動きの途中でふと止まった場所のように見える'
+}
+
 function buildStandout(photo: PhotoAnalysis | undefined): string[] {
   if (!photo) {
     return ['画面に残った色や形のまとまり']
@@ -116,7 +147,9 @@ function buildAtmosphere(
   voice: VoiceAnalysis | undefined,
 ): string[] {
   const cue = voiceCue(voice)
+  const background = inferBackground(photo, voice)
   const values = [
+    background,
     cue ? `${cue}が先にあり、写真の見え方を少し決めている` : undefined,
     photo ? `${photo.brightness}で、${photo.tone}が残る空気` : undefined,
     voice?.texture,
@@ -134,20 +167,21 @@ function buildComment(
 ): string {
   const detail = photo?.microDetail ?? photo?.edgeDetail ?? photo?.focalArea
   const cue = voiceCue(voice)
+  const background = inferBackground(photo, voice)
 
   if (detail && cue) {
-    return `${compact(detail, 22)}に、${compact(cue, 24)}が重なっている。`
+    return `${compact(detail, 20)}に、${compact(cue, 22)}が重なる。${compact(background, 30)}。`
   }
 
   if (detail) {
-    return `${compact(detail, 30)}が、写真の中で小さく場所を取っている。`
+    return `${compact(detail, 24)}が、写真の中で小さく場所を取っている。${compact(background, 30)}。`
   }
 
   if (cue) {
-    return `${compact(cue, 28)}だけが、写真の外側の時間を少し足している。`
+    return `${compact(cue, 24)}だけが、写真の外側の時間を少し足している。${compact(background, 30)}。`
   }
 
-  return '何かを面白いと思ってカメラを向けた、その反応がいちばん鮮明に残っている。'
+  return `何かを面白いと思ってカメラを向けた反応が残っている。${compact(background, 30)}。`
 }
 
 export function createObservationJson(input: ObservationInput): AiInsight {

@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Check, Clock3, Loader2, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Check, Loader2, RotateCcw } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { PhotoUpload } from '@/components/photo-upload'
-import { VoiceRecorder } from '@/components/voice-recorder'
+import {
+  VoiceRecorder,
+  type VoiceRecorderStatus,
+} from '@/components/voice-recorder'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth-store'
 import { useRecords } from '@/lib/records-store'
@@ -24,7 +26,9 @@ export default function RecordPage() {
 
   const [photo, setPhoto] = useState<PhotoInput | null>(null)
   const [voice, setVoice] = useState<VoiceInput | null>(null)
+  const [voiceStatus, setVoiceStatus] = useState<VoiceRecorderStatus>('idle')
   const [voiceAutoStartKey, setVoiceAutoStartKey] = useState(0)
+  const [captureSession, setCaptureSession] = useState(0)
   const [timeLeft, setTimeLeft] = useState(captureLimitSeconds)
   const [inputClosed, setInputClosed] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -57,7 +61,9 @@ export default function RecordPage() {
   function restartCapture() {
     setPhoto(null)
     setVoice(null)
+    setVoiceStatus('idle')
     setVoiceAutoStartKey(0)
+    setCaptureSession((current) => current + 1)
     setTimeLeft(captureLimitSeconds)
     setInputClosed(false)
     setAiError('')
@@ -66,8 +72,11 @@ export default function RecordPage() {
   function handlePhotoChange(nextPhoto: PhotoInput | null) {
     setPhoto(nextPhoto)
     setVoice(null)
+    setVoiceStatus('idle')
     if (nextPhoto) {
       setVoiceAutoStartKey((current) => current + 1)
+    } else {
+      setVoiceAutoStartKey(0)
     }
   }
 
@@ -123,10 +132,10 @@ export default function RecordPage() {
             </span>
             <div className="flex flex-col gap-1.5">
               <h1 className="font-serif text-xl font-light text-foreground">
-                この日の観察は保存済みです
+                この日の余白は保存済みです
               </h1>
               <p className="text-sm leading-relaxed text-pretty text-muted-foreground">
-                写真とAIの観察結果を見返せます。
+                写真と声からAIが読み取った背景を見返せます。
               </p>
             </div>
             <Button asChild variant="secondary" className="mt-2 rounded-xl">
@@ -211,76 +220,106 @@ export default function RecordPage() {
 
   const saveLabel = photo
     ? voice
-      ? 'この瞬間を保存する'
+      ? 'この余白を保存する'
       : '写真のあとに声を残してください'
     : 'まず写真を撮ってください'
 
   return (
-    <AppShell showNav={!saving}>
-      <div className="flex flex-col gap-7">
-        <div className="flex flex-col gap-3">
-          <BackLink />
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex flex-col gap-1">
-              <span className="text-xs tracking-[0.18em] text-muted-foreground">
-                {formatDateJP(today)}
-              </span>
-              <h1 className="font-serif text-2xl font-light tracking-wide text-foreground">
-                30秒の観察
-              </h1>
-            </div>
-            <div
-              className={`flex min-w-20 items-center justify-center gap-1.5 rounded-2xl border px-3 py-2 ${
-                inputClosed
-                  ? 'border-destructive/30 bg-destructive/10 text-destructive'
-                  : 'border-border bg-card text-foreground'
-              }`}
-              aria-live="polite"
-            >
-              <Clock3 className="size-4" aria-hidden="true" />
-              <span className="font-mono text-lg tabular-nums">{timeLeft}</span>
-            </div>
-          </div>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            30秒以内に写真を撮ってください。撮影後、マイクが自動で起動するので、何が面白いと感じたか、何をメインで撮ったかを話してください。
-          </p>
+    <div className="flex min-h-dvh justify-center bg-neutral-950">
+      <main className="relative h-dvh w-full max-w-md overflow-hidden bg-neutral-950 text-white">
+        <PhotoUpload
+          key={captureSession}
+          onChange={handlePhotoChange}
+          disabled={inputClosed || saving}
+          timeLeft={timeLeft}
+          autoStart
+          variant="immersive"
+          title="30秒の余白"
+          voiceStatus={voiceStatus}
+          className="absolute inset-0"
+        />
+
+        <div className="pointer-events-none absolute inset-x-4 top-4 z-40 flex items-center justify-between gap-3">
+          <Link
+            href="/"
+            className="pointer-events-auto flex size-10 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/50"
+            aria-label="ホームへ戻る"
+          >
+            <ArrowLeft className="size-5" aria-hidden="true" />
+          </Link>
+          <span className="rounded-full bg-black/35 px-3 py-2 text-[11px] tracking-wide text-white/80 backdrop-blur-md">
+            {formatDateJP(today)}
+          </span>
         </div>
 
-        {inputClosed && (
-          <div className="rounded-2xl border border-border bg-card px-4 py-3 text-sm leading-relaxed text-muted-foreground">
-            入力は締め切られました。
-            {closedWithoutPhoto && '写真がないため、もう一度30秒を始めてください。'}
-            {closedWithoutVoice && '音声がないため、もう一度30秒を始めてください。'}
-            {photo && voice && 'この写真と声をAIが観察します。'}
+        {!photo && !inputClosed && (
+          <p className="pointer-events-none absolute inset-x-8 bottom-28 z-30 text-center text-xs leading-relaxed text-white/70">
+            30秒以内に、今日の余白として残したいものを撮ってください。
+          </p>
+        )}
+
+        {photo && (
+          <div className="absolute inset-x-4 bottom-4 z-40 flex flex-col gap-2">
+            <VoiceRecorder
+              key={voiceAutoStartKey}
+              onChange={setVoice}
+              disabled={inputClosed || saving}
+              autoStartKey={voiceAutoStartKey}
+              required
+              variant="camera"
+              onStatusChange={setVoiceStatus}
+            />
+
+            {inputClosed && (
+              <p className="rounded-2xl bg-black/55 px-4 py-2 text-xs leading-relaxed text-white/75 backdrop-blur-md">
+                入力は締め切られました。
+                {closedWithoutVoice && '声がないため、もう一度30秒を始めてください。'}
+                {voice && 'この写真と声をAIが観察します。'}
+              </p>
+            )}
+
+            {aiError && (
+              <p className="rounded-2xl border border-destructive/30 bg-destructive/20 px-4 py-2 text-xs leading-relaxed text-white">
+                {aiError}
+              </p>
+            )}
+
+            <div className="flex gap-2">
+              {(closedWithoutVoice || aiError) && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={restartCapture}
+                  className="h-12 rounded-2xl text-sm font-normal"
+                >
+                  <RotateCcw className="size-4" aria-hidden="true" />
+                  やり直す
+                </Button>
+              )}
+              <Button
+                onClick={handleSave}
+                disabled={!canSave}
+                size="lg"
+                className="h-12 flex-1 rounded-2xl text-sm font-normal tracking-wide"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                    AIが背景を読んでいます
+                  </>
+                ) : (
+                  saveLabel
+                )}
+              </Button>
+            </div>
           </div>
         )}
 
-        <section className="flex flex-col gap-2.5">
-          <SectionLabel n="1">写真</SectionLabel>
-          <PhotoUpload
-            onChange={handlePhotoChange}
-            disabled={inputClosed || saving}
-            timeLeft={timeLeft}
-          />
-        </section>
-
-        <section className="flex flex-col gap-2.5">
-          <SectionLabel n="2">音声</SectionLabel>
-          <VoiceRecorder
-            onChange={setVoice}
-            disabled={!photo || inputClosed || saving}
-            autoStartKey={voiceAutoStartKey}
-            required
-          />
-        </section>
-
-        <div className="flex flex-col gap-2 pt-1">
-          {aiError && (
-            <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs leading-relaxed text-destructive">
-              {aiError}
+        {closedWithoutPhoto && (
+          <div className="absolute inset-x-6 bottom-8 z-40 flex flex-col gap-3 rounded-[1.6rem] bg-black/60 px-5 py-4 text-center backdrop-blur-md">
+            <p className="text-sm leading-relaxed text-white/80">
+              写真がないため、もう一度30秒を始めてください。
             </p>
-          )}
-          {(closedWithoutPhoto || closedWithoutVoice) && (
             <Button
               type="button"
               variant="secondary"
@@ -288,30 +327,12 @@ export default function RecordPage() {
               className="h-12 rounded-2xl text-sm font-normal"
             >
               <RotateCcw className="size-4" aria-hidden="true" />
-              もう一度30秒を始める
+              もう一度始める
             </Button>
-          )}
-          <Button
-            onClick={handleSave}
-            disabled={!canSave}
-            size="lg"
-            className="h-14 rounded-2xl text-base font-normal tracking-wide"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                AIが写真と声を観察しています
-              </>
-            ) : (
-              saveLabel
-            )}
-          </Button>
-          <p className="text-center text-[11px] tracking-wide text-muted-foreground">
-            写真を撮ると録音が自動で始まります。保存には写真と音声の両方が必要です
-          </p>
-        </div>
-      </div>
-    </AppShell>
+          </div>
+        )}
+      </main>
+    </div>
   )
 }
 
@@ -324,18 +345,5 @@ function BackLink() {
       <ArrowLeft className="size-4" aria-hidden="true" />
       ホーム
     </Link>
-  )
-}
-
-function SectionLabel({ n, children }: { n: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="flex size-5 items-center justify-center rounded-full bg-secondary text-[11px] text-secondary-foreground">
-        {n}
-      </span>
-      <h2 className="text-sm font-medium tracking-wide text-foreground">
-        {children}
-      </h2>
-    </div>
   )
 }

@@ -198,10 +198,20 @@ export function PhotoUpload({
   onChange,
   disabled = false,
   timeLeft,
+  autoStart = false,
+  variant = 'phone',
+  title = '今日の記録',
+  voiceStatus = 'idle',
+  className,
 }: {
   onChange: (photo: PhotoInput | null) => void
   disabled?: boolean
   timeLeft: number
+  autoStart?: boolean
+  variant?: 'phone' | 'immersive'
+  title?: string
+  voiceStatus?: 'idle' | 'recording' | 'done'
+  className?: string
 }) {
   const [preview, setPreview] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<PhotoAnalysis | null>(null)
@@ -211,6 +221,7 @@ export function PhotoUpload({
   const [error, setError] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const handledAutoStartRef = useRef(false)
 
   useEffect(() => {
     return () => {
@@ -226,6 +237,19 @@ export function PhotoUpload({
       setCameraActive(false)
     }
   }, [disabled, cameraActive])
+
+  useEffect(() => {
+    if (
+      autoStart &&
+      !handledAutoStartRef.current &&
+      !disabled &&
+      !preview &&
+      !cameraActive
+    ) {
+      handledAutoStartRef.current = true
+      void startCamera()
+    }
+  }, [autoStart, disabled, preview, cameraActive])
 
   async function startCamera() {
     if (disabled || busy) return
@@ -283,18 +307,39 @@ export function PhotoUpload({
     setAnalysis(null)
     setError('')
     setZoom(1)
+    handledAutoStartRef.current = false
     onChange(null)
   }
 
+  const immersive = variant === 'immersive'
   const timerClass =
     timeLeft <= 5
       ? 'border-destructive bg-destructive text-destructive-foreground'
       : 'border-primary bg-black/35 text-white'
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative w-full max-w-[22rem] rounded-[2.1rem] bg-neutral-950 p-2 shadow-[0_18px_50px_rgb(82_43_12_/_0.28)]">
-        <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[1.65rem] bg-neutral-900">
+    <div
+      className={cn(
+        immersive
+          ? 'flex h-full min-h-0 flex-col'
+          : 'flex flex-col items-center gap-3',
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          immersive
+            ? 'relative min-h-0 flex-1 overflow-hidden bg-neutral-950'
+            : 'relative w-full max-w-[22rem] rounded-[2.1rem] bg-neutral-950 p-2 shadow-[0_18px_50px_rgb(82_43_12_/_0.28)]',
+        )}
+      >
+        <div
+          className={cn(
+            immersive
+              ? 'relative size-full overflow-hidden bg-neutral-900'
+              : 'relative aspect-[9/16] w-full overflow-hidden rounded-[1.65rem] bg-neutral-900',
+          )}
+        >
           {preview ? (
             <RecordImage
               src={preview}
@@ -317,9 +362,14 @@ export function PhotoUpload({
           <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/65 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/75 via-black/35 to-transparent" />
 
-          <div className="absolute inset-x-5 top-4 flex items-start justify-between gap-4 text-white">
+          <div
+            className={cn(
+              'absolute inset-x-5 flex items-start justify-between gap-4 text-white',
+              immersive ? 'top-16' : 'top-4',
+            )}
+          >
             <span className="pt-1 text-xs font-medium tracking-wide">
-              今日の記録
+              {title}
             </span>
             <span
               className={cn(
@@ -352,13 +402,23 @@ export function PhotoUpload({
           )}
 
           {preview && analysis && (
-            <span className="absolute left-5 top-24 max-w-[70%] rounded-full bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
+            <span
+              className={cn(
+                'absolute left-5 max-w-[70%] rounded-full bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur-sm',
+                immersive ? 'top-36' : 'top-24',
+              )}
+            >
               {analysis.microDetail ?? `${analysis.brightness}光`}
             </span>
           )}
 
           {!preview && cameraActive && (
-            <div className="absolute inset-x-6 bottom-28 flex items-center gap-3 rounded-full bg-black/35 px-4 py-3 text-white backdrop-blur-sm">
+            <div
+              className={cn(
+                'absolute inset-x-6 flex items-center gap-3 rounded-full bg-black/35 px-4 py-3 text-white backdrop-blur-sm',
+                immersive ? 'bottom-32' : 'bottom-28',
+              )}
+            >
               <ZoomIn className="size-4 text-primary" aria-hidden="true" />
               <input
                 type="range"
@@ -376,8 +436,22 @@ export function PhotoUpload({
             </div>
           )}
 
-          <div className="absolute inset-x-6 bottom-6 flex items-end justify-between">
-            <span className="flex size-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm">
+          <div
+            className={cn(
+              'absolute inset-x-6 flex items-end justify-between',
+              immersive && preview ? 'bottom-44' : 'bottom-6',
+            )}
+          >
+            <span
+              className={cn(
+                'flex size-11 items-center justify-center rounded-full backdrop-blur-sm',
+                voiceStatus === 'recording'
+                  ? 'bg-primary text-primary-foreground ring-4 ring-primary/25'
+                  : voiceStatus === 'done'
+                    ? 'bg-white text-primary'
+                    : 'bg-white/15 text-white',
+              )}
+            >
               <Mic className="size-5" aria-hidden="true" />
             </span>
 
