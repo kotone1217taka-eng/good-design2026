@@ -104,6 +104,25 @@ export async function saveUserRecord(
   return savedRecord
 }
 
+export async function saveUserRecordReactions(
+  uid: string,
+  recordId: string,
+  aiReactions: DayRecord['aiReactions'],
+  customAiReactions: DayRecord['customAiReactions'],
+): Promise<void> {
+  assertFirebaseReady()
+
+  await setDoc(
+    recordDocument(uid, recordId),
+    {
+      aiReactions: cleanForFirestore(aiReactions ?? []),
+      customAiReactions: cleanForFirestore(customAiReactions ?? []),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  )
+}
+
 export function subscribeToUserRecords(
   uid: string,
   onRecords: (records: DayRecord[]) => void,

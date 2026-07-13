@@ -267,7 +267,10 @@ export function PhotoUpload({
           width: { ideal: 1280 },
           height: { ideal: 960 },
         },
-        audio: false,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
       })
       streamRef.current = stream
       if (videoRef.current) {
@@ -276,7 +279,7 @@ export function PhotoUpload({
       }
       setCameraActive(true)
     } catch {
-      setError('カメラの使用を許可すると、この画面内で撮影できます。')
+      setError('カメラとマイクの使用を許可すると、この画面内で記録できます。')
     }
   }
 
@@ -392,10 +395,10 @@ export function PhotoUpload({
               </span>
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium">
-                  30秒のカメラを開く
+                  カメラとマイクを開く
                 </span>
                 <span className="text-[11px] leading-relaxed text-white/70">
-                  アプリ側ではシャッター音を鳴らしません
+                  最初にまとめて許可すると、写真後の録音がすぐ始まります
                 </span>
               </div>
             </div>

@@ -8,10 +8,14 @@ import {
   useMemo,
   useState,
 } from 'react'
-import type { DayRecord } from './types'
+import type { AiReaction, DayRecord } from './types'
 import { useAuth } from './auth-store'
 import { getTodayIso } from './date'
-import { saveUserRecord, subscribeToUserRecords } from './firebase-records'
+import {
+  saveUserRecord,
+  saveUserRecordReactions,
+  subscribeToUserRecords,
+} from './firebase-records'
 
 type RecordsContextValue = {
   records: DayRecord[]
@@ -22,6 +26,7 @@ type RecordsContextValue = {
   todayRecord: DayRecord | undefined
   getById: (id: string) => DayRecord | undefined
   addRecord: (record: DayRecord) => Promise<DayRecord>
+  reactToInsight: (recordId: string, reaction: AiReaction) => Promise<void>
 }
 
 const RecordsContext = createContext<RecordsContextValue | null>(null)
@@ -82,6 +87,51 @@ export function RecordsProvider({ children }: { children: React.ReactNode }) {
     [user],
   )
 
+  const reactToInsight = useCallback(
+    async (recordId: string, reaction: AiReaction) => {
+      if (!user) {
+        throw new Error('サインインするとリアクションを保存できます。')
+      }
+
+      const record = records.find((r) => r.id === recordId)
+      if (!record) throw new Error('記録が見つかりません。')
+
+      const nextReactions = [
+        ...(record.aiReactions ?? []).filter((item) => item.id !== reaction.id),
+        reaction,
+      ]
+      const nextCustomReactions = reaction.customReaction
+        ? [
+            ...(record.customAiReactions ?? []).filter(
+              (item) => item.id !== reaction.customReaction?.id,
+            ),
+            reaction.customReaction,
+          ]
+        : record.customAiReactions ?? []
+
+      await saveUserRecordReactions(
+        user.uid,
+        recordId,
+        nextReactions,
+        nextCustomReactions,
+      )
+      setRecords((prev) =>
+        sortByDateDesc(
+          prev.map((item) =>
+            item.id === recordId
+              ? {
+                  ...item,
+                  aiReactions: nextReactions,
+                  customAiReactions: nextCustomReactions,
+                }
+              : item,
+          ),
+        ),
+      )
+    },
+    [records, user],
+  )
+
   const getById = useCallback(
     (id: string) => records.find((r) => r.id === id),
     [records],
@@ -96,8 +146,9 @@ export function RecordsProvider({ children }: { children: React.ReactNode }) {
       todayRecord: records.find((r) => r.date === today),
       getById,
       addRecord,
+      reactToInsight,
     }
-  }, [records, today, loading, error, getById, addRecord])
+  }, [records, today, loading, error, getById, addRecord, reactToInsight])
 
   return (
     <RecordsContext.Provider value={value}>{children}</RecordsContext.Provider>

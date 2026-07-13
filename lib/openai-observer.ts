@@ -83,6 +83,15 @@ function isDataImage(src: string | undefined): src is string {
 function buildPrompt(input: OpenAiObservationInput): string {
   const voice = input.voiceAnalysis
   const photoAnalysis = input.photoAnalysis
+  const reactions = input.reactionProfile
+  const customReactions = reactions?.custom
+    .map((reaction) => {
+      const examples = reaction.examples.length
+        ? ` 反応したコメント: ${reaction.examples.join(' / ')}`
+        : ''
+      return `${reaction.label}: ${reaction.description}${examples}`
+    })
+    .join('\n')
 
   return [
     'あなたは写真に対して静かに反応する観察者です。',
@@ -94,6 +103,8 @@ function buildPrompt(input: OpenAiObservationInput): string {
     '背景の推測は断定せず、「〜のように見える」「〜かもしれない」「〜の途中に見える」のような仮説として書いてください。',
     '音声は、何が面白かったか、何をメインで撮ったかを本人がその場で話した重要な手がかりです。',
     '音声の文字起こし、声の調子、周囲の音を使って、写真のどこを主役として見るべきかを決めてください。',
+    '過去のリアクションを参考にしてください。「さいこう」と「グッド」がついた見方は優先し、「ちがう」がついた見方や断定は繰り返さないでください。',
+    'ユーザー作成リアクションがある場合、その名前よりも説明文を重視してください。説明文は、その人が何を面白いと感じるか、どの視点に共感するかを表しています。',
     'interesting には、写真の具体物と音声の内容がつながる観察を少なくとも1つ入れてください。',
     'atmosphere には、声の質感や話された言葉が写真の空気をどう変えるか、さらに背景の仮説を1つ含めてください。',
     'keywords.voice には、音声から読めた言葉や声の質感を2〜6個入れてください。音声が空の場合だけ空配列にします。',
@@ -103,6 +114,10 @@ function buildPrompt(input: OpenAiObservationInput): string {
     '',
     `音声の文字起こし: ${clean(voice?.transcript) || 'なし'}`,
     `音声の長さ: ${voice ? `${voice.durationSeconds}秒 / ${voice.texture ?? voice.pace}` : 'なし'}`,
+    `過去に「さいこう」だった見方: ${reactions?.loved.length ? reactions.loved.join(' / ') : 'なし'}`,
+    `過去に「グッド」だった見方: ${reactions?.liked.length ? reactions.liked.join(' / ') : 'なし'}`,
+    `過去に「ちがう」だった見方: ${reactions?.rejected.length ? reactions.rejected.join(' / ') : 'なし'}`,
+    `ユーザー作成リアクションの意味:\n${customReactions || 'なし'}`,
     `写真の簡易分析: ${
       photoAnalysis
         ? [

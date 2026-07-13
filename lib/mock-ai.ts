@@ -1,4 +1,9 @@
-import type { AiInsight, PhotoAnalysis, VoiceAnalysis } from './types'
+import type {
+  AiInsight,
+  AiReactionProfile,
+  PhotoAnalysis,
+  VoiceAnalysis,
+} from './types'
 
 export type ObservationInput = {
   hasPhoto: boolean
@@ -6,6 +11,7 @@ export type ObservationInput = {
   hasAudio?: boolean
   photoAnalysis?: PhotoAnalysis
   voiceAnalysis?: VoiceAnalysis
+  reactionProfile?: AiReactionProfile
   createdAt?: string
 }
 
@@ -61,6 +67,15 @@ function voiceCue(voice: VoiceAnalysis | undefined): string {
   return ''
 }
 
+function preferredCue(profile: AiReactionProfile | undefined): string {
+  return (
+    profile?.custom[0]?.description ??
+    profile?.loved[0] ??
+    profile?.liked[0] ??
+    ''
+  )
+}
+
 function inferBackground(
   photo: PhotoAnalysis | undefined,
   voice: VoiceAnalysis | undefined,
@@ -112,11 +127,16 @@ function buildStandout(photo: PhotoAnalysis | undefined): string[] {
 function buildInteresting(
   photo: PhotoAnalysis | undefined,
   voice: VoiceAnalysis | undefined,
+  profile: AiReactionProfile | undefined,
 ): string[] {
   const cue = voiceCue(voice)
+  const preference = preferredCue(profile)
 
   if (!photo) {
     return [
+      preference
+        ? `前に反応が強かった「${compact(preference, 18)}」に近い見方で、画面の中を探している`
+        : undefined,
       cue ? `${cue}が、写真の外側にある面白さを指している` : undefined,
       '何を写したかより、写そうとした一瞬そのものが残っている',
       '画面の外側に、その場の続きがありそうに見える',
@@ -124,6 +144,9 @@ function buildInteresting(
   }
 
   const interesting = [
+    preference && photo.edgeDetail
+      ? `前に反応が強かった「${compact(preference, 18)}」に近いものとして、${photo.edgeDetail}を見る`
+      : undefined,
     cue && photo.microDetail
       ? `${cue}と、${photo.microDetail}が同じ場所を見ている`
       : undefined,
@@ -187,6 +210,7 @@ function buildComment(
 export function createObservationJson(input: ObservationInput): AiInsight {
   const photo = input.photoAnalysis
   const voice = input.voiceAnalysis
+  const profile = input.reactionProfile
   const keywords = {
     photo: photoKeywords(photo),
     voice: transcriptKeywords(voice),
@@ -194,7 +218,7 @@ export function createObservationJson(input: ObservationInput): AiInsight {
 
   return {
     standout: buildStandout(photo),
-    interesting: buildInteresting(photo, voice),
+    interesting: buildInteresting(photo, voice, profile),
     atmosphere: buildAtmosphere(photo, voice),
     comment: buildComment(photo, voice),
     keywords,

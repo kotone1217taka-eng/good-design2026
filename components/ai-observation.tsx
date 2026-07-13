@@ -1,6 +1,7 @@
 import { Eye, Lightbulb, Sparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { DayRecord } from '@/lib/types'
+import { InsightReactions } from '@/components/insight-reactions'
+import type { AiReactionTarget, DayRecord } from '@/lib/types'
 import {
   getInsightAtmosphere,
   getInsightComment,
@@ -11,18 +12,26 @@ import {
 export function AiObservation({ record }: { record: DayRecord }) {
   return (
     <section className="flex flex-col gap-4">
-      <ObservationComment>{getInsightComment(record.insight)}</ObservationComment>
+      <ObservationComment record={record}>
+        {getInsightComment(record.insight)}
+      </ObservationComment>
       <ObservationList
+        record={record}
+        target="standout"
         icon={<Eye className="size-4" aria-hidden="true" />}
         title="写真の中で目立ったもの"
         items={getInsightStandout(record.insight)}
       />
       <ObservationList
+        record={record}
+        target="interesting"
         icon={<Lightbulb className="size-4" aria-hidden="true" />}
         title="面白いと感じたポイント"
         items={getInsightInteresting(record.insight)}
       />
       <ObservationList
+        record={record}
+        target="atmosphere"
         icon={<Sparkles className="size-4" aria-hidden="true" />}
         title="その場の雰囲気"
         items={getInsightAtmosphere(record.insight)}
@@ -31,21 +40,32 @@ export function AiObservation({ record }: { record: DayRecord }) {
   )
 }
 
-function ObservationComment({ children }: { children: string }) {
+function ObservationComment({
+  children,
+  record,
+}: {
+  children: string
+  record: DayRecord
+}) {
   return (
     <div className="rounded-2xl border border-border bg-card px-5 py-5">
       <p className="font-serif text-lg font-light leading-relaxed text-pretty text-foreground">
         {children}
       </p>
+      <InsightReactions record={record} target="comment" text={children} />
     </div>
   )
 }
 
 function ObservationList({
+  record,
+  target,
   icon,
   title,
   items,
 }: {
+  record: DayRecord
+  target: AiReactionTarget
   icon: ReactNode
   title: string
   items: string[]
@@ -64,7 +84,8 @@ function ObservationList({
             key={`${title}-${item}`}
             className="rounded-2xl border border-border bg-card px-4 py-3 text-sm leading-relaxed text-card-foreground"
           >
-            {item}
+            <p>{item}</p>
+            <InsightReactions record={record} target={target} text={item} />
           </li>
         ))}
       </ul>

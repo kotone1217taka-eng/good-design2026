@@ -15,13 +15,14 @@ import { useAuth } from '@/lib/auth-store'
 import { useRecords } from '@/lib/records-store'
 import { observeDay, ObserveApiError } from '@/lib/observe-client'
 import { formatDateJP } from '@/lib/date'
+import { buildReactionProfile } from '@/lib/reaction-profile'
 import type { DayRecord, PhotoInput, VoiceInput } from '@/lib/types'
 
 const captureLimitSeconds = 30
 
 export default function RecordPage() {
   const router = useRouter()
-  const { today, todayRecord, addRecord } = useRecords()
+  const { records, today, todayRecord, addRecord } = useRecords()
   const { configured, loading: authLoading, user, signInWithGoogle } = useAuth()
 
   const [photo, setPhoto] = useState<PhotoInput | null>(null)
@@ -174,6 +175,7 @@ export default function RecordPage() {
       hasAudio: true,
       photoAnalysis: photo.analysis,
       voiceAnalysis: voice.analysis,
+      reactionProfile: buildReactionProfile(records),
       photoSrc: photo.src,
       createdAt,
     }

@@ -21,6 +21,37 @@ export type AiInsight = {
   sentence?: string
 }
 
+export type AiReactionValue = 'good' | 'wrong' | 'best' | 'custom'
+
+export type AiReactionTarget = 'comment' | 'standout' | 'interesting' | 'atmosphere'
+
+export type CustomAiReaction = {
+  id: string
+  label: string
+  description: string
+  createdAt: string
+}
+
+export type AiReaction = {
+  id: string
+  target: AiReactionTarget
+  text: string
+  value: AiReactionValue
+  customReaction?: CustomAiReaction
+  createdAt: string
+}
+
+export type AiReactionProfile = {
+  liked: string[]
+  loved: string[]
+  rejected: string[]
+  custom: Array<{
+    label: string
+    description: string
+    examples: string[]
+  }>
+}
+
 export type PhotoAnalysis = {
   brightness: string
   tone: string
@@ -58,6 +89,8 @@ export type DayRecord = {
   hasVoice: boolean
   voiceAnalysis?: VoiceAnalysis
   insight: AiInsight
+  aiReactions?: AiReaction[]
+  customAiReactions?: CustomAiReaction[]
 
   /** Legacy text note from older versions. New records do not use it. */
   note?: string
