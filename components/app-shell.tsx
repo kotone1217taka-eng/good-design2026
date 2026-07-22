@@ -2,10 +2,6 @@ import type { ReactNode } from 'react'
 import { AuthStatus } from './auth-status'
 import { BottomNav } from './bottom-nav'
 
-/**
- * スマホ幅を前提にしたアプリの外枠。
- * 中央に max-w-md のカラムを置き、下にナビを固定する。
- */
 export function AppShell({
   children,
   showNav = true,

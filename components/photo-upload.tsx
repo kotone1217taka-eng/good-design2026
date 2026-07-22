@@ -1,45 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Mic, RotateCcw, Video, ZoomIn } from 'lucide-react'
+import { Camera, ImagePlus, RotateCcw, Video, ZoomIn } from 'lucide-react'
 import { RecordImage } from '@/components/record-image'
 import { cn } from '@/lib/utils'
-import type { PhotoAnalysis, PhotoInput } from '@/lib/types'
+import type { PhotoInput } from '@/lib/types'
 
 const maxStoredImageSize = 1100
 const storedImageQuality = 0.82
-
-type Region = {
-  label: string
-  contains: (x: number, y: number, size: number) => boolean
-}
-
-const regions: Region[] = [
-  {
-    label: '左上の端',
-    contains: (x, y, size) => x < size * 0.34 && y < size * 0.34,
-  },
-  {
-    label: '右上の端',
-    contains: (x, y, size) => x > size * 0.66 && y < size * 0.34,
-  },
-  {
-    label: '左下の端',
-    contains: (x, y, size) => x < size * 0.34 && y > size * 0.66,
-  },
-  {
-    label: '右下の端',
-    contains: (x, y, size) => x > size * 0.66 && y > size * 0.66,
-  },
-  {
-    label: '中央',
-    contains: (x, y, size) =>
-      x > size * 0.32 &&
-      x < size * 0.68 &&
-      y > size * 0.32 &&
-      y < size * 0.68,
-  },
-]
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -80,114 +48,38 @@ function makePersistentPhotoSrcFromVideo(
   return canvas.toDataURL('image/jpeg', storedImageQuality)
 }
 
-async function analyzePhoto(src: string): Promise<PhotoAnalysis> {
-  try {
-    const img = await loadImage(src)
-    const size = 72
-    const canvas = document.createElement('canvas')
-    canvas.width = size
-    canvas.height = size
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('No canvas context')
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('Could not read image file'))
+    reader.readAsDataURL(file)
+  })
+}
 
-    ctx.drawImage(img, 0, 0, size, size)
-    const { data } = ctx.getImageData(0, 0, size, size)
-    let red = 0
-    let green = 0
-    let blue = 0
-    let count = 0
-    const regionScores = regions.map((region) => ({
-      label: region.label,
-      color: 0,
-      green: 0,
-      bright: 0,
-      dark: 0,
-      count: 0,
-    }))
+async function makePersistentPhotoSrcFromFile(file: File): Promise<string> {
+  const src = await readFileAsDataUrl(file)
+  const image = await loadImage(src)
+  const scale = Math.min(
+    1,
+    maxStoredImageSize / Math.max(image.naturalWidth, image.naturalHeight),
+  )
+  const width = Math.max(1, Math.round(image.naturalWidth * scale))
+  const height = Math.max(1, Math.round(image.naturalHeight * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
 
-    for (let i = 0; i < data.length; i += 4) {
-      const alpha = data[i + 3]
-      if (alpha < 16) continue
-
-      const pixelRed = data[i]
-      const pixelGreen = data[i + 1]
-      const pixelBlue = data[i + 2]
-      const lightness = (pixelRed + pixelGreen + pixelBlue) / 3
-      const saturation =
-        Math.max(pixelRed, pixelGreen, pixelBlue) -
-        Math.min(pixelRed, pixelGreen, pixelBlue)
-      const x = (i / 4) % size
-      const y = Math.floor(i / 4 / size)
-
-      red += pixelRed
-      green += pixelGreen
-      blue += pixelBlue
-      count += 1
-
-      regions.forEach((region, index) => {
-        if (!region.contains(x, y, size)) return
-        regionScores[index].count += 1
-        if (saturation > 48) regionScores[index].color += 1
-        if (pixelGreen > pixelRed + 14 && pixelGreen > pixelBlue + 8) {
-          regionScores[index].green += 1
-        }
-        if (lightness > 178) regionScores[index].bright += 1
-        if (lightness < 76) regionScores[index].dark += 1
-      })
-    }
-
-    if (!count) throw new Error('No pixels')
-
-    red /= count
-    green /= count
-    blue /= count
-
-    const lightness = (red + green + blue) / 3
-    const brightness =
-      lightness < 86 ? '暗めの' : lightness > 176 ? '明るい' : 'やわらかい'
-    const tone =
-      blue > red + 18 && blue > green + 8
-        ? '青っぽい色'
-        : red > blue + 18 && red > green - 4
-          ? 'あたたかい色'
-          : green > red + 12 && green > blue + 4
-            ? '緑がかった色'
-            : '淡い色'
-
-    const best = regionScores
-      .filter((region) => region.count > 0)
-      .sort((a, b) => {
-        const score = (value: typeof a) =>
-          value.color * 1.4 + value.green * 1.8 + value.bright + value.dark * 0.7
-        return score(b) - score(a)
-      })[0]
-
-    const focalArea = best?.label ?? '中央'
-    const edgeDetail =
-      best && best.label !== '中央'
-        ? `${best.label}に目を引く色や明暗の差`
-        : '中央に集まった色と形'
-    const microDetail =
-      best?.green && best.green > best.count * 0.16
-        ? `${focalArea}に緑の小さなまとまり`
-        : `${focalArea}に${tone}の小さな変化`
-
-    return {
-      brightness,
-      tone,
-      focalArea,
-      edgeDetail,
-      microDetail,
-    }
-  } catch {
-    return {
-      brightness: 'やわらかい',
-      tone: '淡い色',
-      focalArea: '画面のどこか',
-      edgeDetail: '写真の中に残った小さな差',
-      microDetail: '画面の端にある細かな要素',
-    }
+  if (!ctx) {
+    throw new Error('Could not prepare image file')
   }
+
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+  ctx.drawImage(image, 0, 0, width, height)
+
+  return canvas.toDataURL('image/jpeg', storedImageQuality)
 }
 
 function stopStream(stream: MediaStream | null) {
@@ -197,29 +89,25 @@ function stopStream(stream: MediaStream | null) {
 export function PhotoUpload({
   onChange,
   disabled = false,
-  timeLeft,
   autoStart = false,
   variant = 'phone',
-  title = '今日の記録',
-  voiceStatus = 'idle',
+  title = '今日の写真',
   className,
 }: {
   onChange: (photo: PhotoInput | null) => void
   disabled?: boolean
-  timeLeft: number
   autoStart?: boolean
   variant?: 'phone' | 'immersive'
   title?: string
-  voiceStatus?: 'idle' | 'recording' | 'done'
   className?: string
 }) {
   const [preview, setPreview] = useState<string | null>(null)
-  const [analysis, setAnalysis] = useState<PhotoAnalysis | null>(null)
   const [busy, setBusy] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [error, setError] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const handledAutoStartRef = useRef(false)
 
@@ -254,7 +142,7 @@ export function PhotoUpload({
   async function startCamera() {
     if (disabled || busy) return
     if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
-      setError('このブラウザではカメラを起動できません。')
+      fileInputRef.current?.click()
       return
     }
 
@@ -267,10 +155,6 @@ export function PhotoUpload({
           width: { ideal: 1280 },
           height: { ideal: 960 },
         },
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
       })
       streamRef.current = stream
       if (videoRef.current) {
@@ -279,7 +163,7 @@ export function PhotoUpload({
       }
       setCameraActive(true)
     } catch {
-      setError('カメラとマイクの使用を許可すると、この画面内で記録できます。')
+      setError('カメラを起動できませんでした。写真ファイルを選んで記録することもできます。')
     }
   }
 
@@ -294,9 +178,7 @@ export function PhotoUpload({
       streamRef.current = null
       setCameraActive(false)
       setPreview(src)
-      const nextAnalysis = await analyzePhoto(src)
-      setAnalysis(nextAnalysis)
-      onChange({ src, analysis: nextAnalysis })
+      onChange({ src })
     } catch {
       setError('写真を撮れませんでした。もう一度試してください。')
     } finally {
@@ -304,10 +186,32 @@ export function PhotoUpload({
     }
   }
 
+  async function handleFileChange(file: File | undefined) {
+    if (!file || disabled || busy) return
+
+    setBusy(true)
+    try {
+      const src = await makePersistentPhotoSrcFromFile(file)
+      stopStream(streamRef.current)
+      streamRef.current = null
+      setCameraActive(false)
+      setPreview(src)
+      onChange({ src })
+      setError('')
+    } catch {
+      setError('写真を読み込めませんでした。別の写真で試してください。')
+    } finally {
+      setBusy(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   function reset() {
     if (disabled) return
+    stopStream(streamRef.current)
+    streamRef.current = null
+    setCameraActive(false)
     setPreview(null)
-    setAnalysis(null)
     setError('')
     setZoom(1)
     handledAutoStartRef.current = false
@@ -315,10 +219,6 @@ export function PhotoUpload({
   }
 
   const immersive = variant === 'immersive'
-  const timerClass =
-    timeLeft <= 5
-      ? 'border-destructive bg-destructive text-destructive-foreground'
-      : 'border-primary bg-black/35 text-white'
 
   return (
     <div
@@ -329,24 +229,33 @@ export function PhotoUpload({
         className,
       )}
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(event) => void handleFileChange(event.target.files?.[0])}
+      />
+
       <div
         className={cn(
           immersive
             ? 'relative min-h-0 flex-1 overflow-hidden bg-neutral-950'
-            : 'relative w-full max-w-[22rem] rounded-[2.1rem] bg-neutral-950 p-2 shadow-[0_18px_50px_rgb(82_43_12_/_0.28)]',
+            : 'relative w-full max-w-[22rem] rounded-[2rem] bg-neutral-950 p-2 shadow-[0_18px_50px_rgb(24_62_54_/_0.18)]',
         )}
       >
         <div
           className={cn(
             immersive
               ? 'relative size-full overflow-hidden bg-neutral-900'
-              : 'relative aspect-[9/16] w-full overflow-hidden rounded-[1.65rem] bg-neutral-900',
+              : 'relative aspect-[9/16] w-full overflow-hidden rounded-[1.5rem] bg-neutral-900',
           )}
         >
           {preview ? (
             <RecordImage
               src={preview}
-              alt="撮影した写真"
+              alt="記録する写真"
               className="object-cover"
             />
           ) : (
@@ -363,28 +272,16 @@ export function PhotoUpload({
           )}
 
           <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/65 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/75 via-black/35 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/80 via-black/35 to-transparent" />
 
           <div
             className={cn(
-              'absolute inset-x-5 flex items-start justify-between gap-4 text-white',
+              'absolute inset-x-5 flex items-center justify-between gap-4 text-white',
               immersive ? 'top-16' : 'top-4',
             )}
           >
-            <span className="pt-1 text-xs font-medium tracking-wide">
+            <span className="rounded-full bg-black/35 px-3 py-1.5 text-xs font-medium tracking-wide backdrop-blur-sm">
               {title}
-            </span>
-            <span
-              className={cn(
-                'flex size-20 shrink-0 flex-col items-center justify-center rounded-full border-2 text-center shadow-lg backdrop-blur-sm',
-                timerClass,
-              )}
-              aria-live="polite"
-            >
-              <span className="font-mono text-3xl leading-none tabular-nums">
-                {timeLeft}
-              </span>
-              <span className="text-[10px]">秒</span>
             </span>
           </div>
 
@@ -394,25 +291,12 @@ export function PhotoUpload({
                 <Video className="size-7" aria-hidden="true" />
               </span>
               <div className="flex flex-col gap-1.5">
-                <span className="text-sm font-medium">
-                  カメラとマイクを開く
-                </span>
+                <span className="text-sm font-medium">今日残したいものを1枚だけ</span>
                 <span className="text-[11px] leading-relaxed text-white/70">
-                  最初にまとめて許可すると、写真後の録音がすぐ始まります
+                  言葉を足さず、写真だけで日付を埋めます。
                 </span>
               </div>
             </div>
-          )}
-
-          {preview && analysis && (
-            <span
-              className={cn(
-                'absolute left-5 max-w-[70%] rounded-full bg-black/45 px-3 py-1.5 text-xs text-white backdrop-blur-sm',
-                immersive ? 'top-36' : 'top-24',
-              )}
-            >
-              {analysis.microDetail ?? `${analysis.brightness}光`}
-            </span>
           )}
 
           {!preview && cameraActive && (
@@ -439,24 +323,16 @@ export function PhotoUpload({
             </div>
           )}
 
-          <div
-            className={cn(
-              'absolute inset-x-6 flex items-end justify-between',
-              immersive && preview ? 'bottom-44' : 'bottom-6',
-            )}
-          >
-            <span
-              className={cn(
-                'flex size-11 items-center justify-center rounded-full backdrop-blur-sm',
-                voiceStatus === 'recording'
-                  ? 'bg-primary text-primary-foreground ring-4 ring-primary/25'
-                  : voiceStatus === 'done'
-                    ? 'bg-white text-primary'
-                    : 'bg-white/15 text-white',
-              )}
+          <div className="absolute inset-x-6 bottom-6 flex items-end justify-between">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled || busy}
+              className="flex size-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition-transform active:scale-95 disabled:opacity-50"
+              aria-label="写真を選ぶ"
             >
-              <Mic className="size-5" aria-hidden="true" />
-            </span>
+              <ImagePlus className="size-5" aria-hidden="true" />
+            </button>
 
             {preview ? (
               <button
@@ -473,7 +349,7 @@ export function PhotoUpload({
                 type="button"
                 onClick={capturePhoto}
                 disabled={disabled || busy}
-                className="flex size-20 items-center justify-center rounded-full border-4 border-white/80 bg-white text-foreground shadow-[0_0_0_6px_rgb(249_115_22_/_0.45)] transition-transform active:scale-95 disabled:opacity-50"
+                className="flex size-20 items-center justify-center rounded-full border-4 border-white/80 bg-white text-foreground shadow-[0_0_0_6px_rgb(235_88_64_/_0.36)] transition-transform active:scale-95 disabled:opacity-50"
                 aria-label="写真を撮る"
               >
                 <Camera className="size-7" aria-hidden="true" />
@@ -485,20 +361,11 @@ export function PhotoUpload({
                 disabled={disabled || busy}
                 className="rounded-full bg-primary px-5 py-3 text-sm text-primary-foreground shadow-lg transition-transform active:scale-95 disabled:opacity-50"
               >
-                開始
+                カメラを開く
               </button>
             )}
 
-            <span className="flex h-8 w-20 items-end justify-center gap-0.5 text-primary">
-              {Array.from({ length: 12 }).map((_, index) => (
-                <span
-                  key={index}
-                  className="w-0.5 rounded-full bg-current opacity-80"
-                  style={{ height: `${5 + ((index * 5 + timeLeft) % 18)}px` }}
-                  aria-hidden="true"
-                />
-              ))}
-            </span>
+            <span className="h-11 w-11" aria-hidden="true" />
           </div>
         </div>
       </div>

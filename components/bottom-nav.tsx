@@ -2,14 +2,12 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BookOpen, CalendarRange, Camera, Home } from 'lucide-react'
+import { Camera, Images } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ITEMS = [
-  { href: '/', label: 'ホーム', icon: Home },
-  { href: '/record', label: '撮る', icon: Camera },
-  { href: '/records', label: '一覧', icon: BookOpen },
-  { href: '/weekly', label: '週', icon: CalendarRange },
+  { href: '/', label: '撮る', icon: Camera },
+  { href: '/records', label: 'メモリー', icon: Images },
 ] as const
 
 export function BottomNav() {

@@ -6,9 +6,9 @@ import { AuthProvider } from '@/lib/auth-store'
 import { RecordsProvider } from '@/lib/records-store'
 
 export const metadata: Metadata = {
-  title: '30秒の余白。同じ毎日を、記憶に残る一日に。',
+  title: 'Photo Diary Calendar',
   description:
-    '30秒で撮った写真と声から、AIが背景や小さな違和感を読み取り、同じ毎日を記憶に残すアプリ。',
+    '毎日1枚の写真でカレンダーを埋めていく、パーソナルな絵日記アプリ。',
   generator: 'v0.app',
 }
 

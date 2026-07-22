@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
@@ -8,7 +9,7 @@ import {
   setDoc,
   type Unsubscribe,
 } from 'firebase/firestore'
-import { getDownloadURL, ref, uploadString } from 'firebase/storage'
+import { deleteObject, getDownloadURL, ref, uploadString } from 'firebase/storage'
 import { firebaseDb, firebaseStorage } from './firebase'
 import type { DayRecord } from './types'
 
@@ -16,10 +17,6 @@ const stalePhotoFallback = '/records/evening-sky.png'
 
 function isDataImage(src: string): boolean {
   return src.startsWith('data:image/')
-}
-
-function isDataAudio(src: string | undefined): src is string {
-  return Boolean(src?.startsWith('data:audio/'))
 }
 
 function normalizeRecord(record: DayRecord): DayRecord {
@@ -64,19 +61,6 @@ async function uploadRecordPhoto(uid: string, record: DayRecord): Promise<string
   return getDownloadURL(photoRef)
 }
 
-async function uploadRecordAudio(
-  uid: string,
-  record: DayRecord,
-): Promise<string | undefined> {
-  if (!firebaseStorage || !isDataAudio(record.audio)) return record.audio
-
-  const audioRef = ref(firebaseStorage, `users/${uid}/records/${record.id}/audio.webm`)
-  await uploadString(audioRef, record.audio, 'data_url', {
-    contentType: 'audio/webm',
-  })
-  return getDownloadURL(audioRef)
-}
-
 export async function saveUserRecord(
   uid: string,
   record: DayRecord,
@@ -84,43 +68,42 @@ export async function saveUserRecord(
   assertFirebaseReady()
 
   const normalized = normalizeRecord(record)
-  const photo = normalized.hasPhoto === false ? normalized.photo : await uploadRecordPhoto(uid, normalized)
-  const audio = await uploadRecordAudio(uid, normalized)
+  const photo =
+    normalized.hasPhoto === false
+      ? normalized.photo
+      : await uploadRecordPhoto(uid, normalized)
+
   const savedRecord: DayRecord = {
-    ...normalized,
+    id: normalized.id,
+    date: normalized.date,
+    createdAt: normalized.createdAt,
     photo,
-    audio,
+    hasPhoto: normalized.hasPhoto ?? true,
   }
 
-  await setDoc(
-    recordDocument(uid, savedRecord.id),
-    {
-      ...cleanForFirestore(savedRecord),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  )
+  await setDoc(recordDocument(uid, savedRecord.id), {
+    ...cleanForFirestore(savedRecord),
+    updatedAt: serverTimestamp(),
+  })
 
   return savedRecord
 }
 
-export async function saveUserRecordReactions(
+export async function deleteUserRecord(
   uid: string,
   recordId: string,
-  aiReactions: DayRecord['aiReactions'],
-  customAiReactions: DayRecord['customAiReactions'],
 ): Promise<void> {
   assertFirebaseReady()
 
-  await setDoc(
-    recordDocument(uid, recordId),
-    {
-      aiReactions: cleanForFirestore(aiReactions ?? []),
-      customAiReactions: cleanForFirestore(customAiReactions ?? []),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  )
+  await deleteDoc(recordDocument(uid, recordId))
+
+  if (!firebaseStorage) return
+
+  try {
+    await deleteObject(ref(firebaseStorage, `users/${uid}/records/${recordId}/photo.jpg`))
+  } catch {
+    // The Firestore record is the source of truth. Missing Storage files are safe to ignore.
+  }
 }
 
 export function subscribeToUserRecords(
@@ -136,7 +119,7 @@ export function subscribeToUserRecords(
       const records = snapshot.docs
         .map((recordSnapshot) => {
           const data = recordSnapshot.data() as Partial<DayRecord>
-          if (!data.id || !data.date || !data.insight) return null
+          if (!data.id || !data.date || !data.photo) return null
           return normalizeRecord(data as DayRecord)
         })
         .filter((record): record is DayRecord => Boolean(record))

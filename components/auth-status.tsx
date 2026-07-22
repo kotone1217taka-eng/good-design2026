@@ -21,7 +21,7 @@ export function AuthStatus() {
   if (loading) {
     return (
       <div className="border-b border-border bg-card/70 px-5 py-3 text-xs text-muted-foreground">
-        アカウントを確認しています
+        アカウントを確認しています。
       </div>
     )
   }
@@ -29,7 +29,7 @@ export function AuthStatus() {
   if (!configured) {
     return (
       <div className="border-b border-destructive/20 bg-destructive/10 px-5 py-3 text-xs leading-relaxed text-destructive">
-        Firebaseの環境変数が未設定です。VercelにFirebase設定を追加してください。
+        Firebaseの環境変数が未設定です。写真の保存にはFirebase設定が必要です。
       </div>
     )
   }
@@ -40,7 +40,7 @@ export function AuthStatus() {
         <div className="min-w-0">
           <p className="text-xs font-medium text-card-foreground">未ログイン</p>
           <p className="truncate text-[11px] text-muted-foreground">
-            記録はアカウントごとに保存されます
+            写真日記はアカウントごとに保存されます。
           </p>
           {error && <p className="mt-1 text-[11px] text-destructive">{error}</p>}
         </div>

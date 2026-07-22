@@ -8,25 +8,25 @@ import {
   useMemo,
   useState,
 } from 'react'
-import type { AiReaction, DayRecord } from './types'
 import { useAuth } from './auth-store'
 import { getTodayIso } from './date'
 import {
+  deleteUserRecord,
   saveUserRecord,
-  saveUserRecordReactions,
   subscribeToUserRecords,
 } from './firebase-records'
+import type { DayRecord } from './types'
 
 type RecordsContextValue = {
   records: DayRecord[]
   today: string
   loading: boolean
   error: string
-  /** 今日の記録（あれば） */
   todayRecord: DayRecord | undefined
   getById: (id: string) => DayRecord | undefined
+  getByDate: (date: string) => DayRecord | undefined
   addRecord: (record: DayRecord) => Promise<DayRecord>
-  reactToInsight: (recordId: string, reaction: AiReaction) => Promise<void>
+  deleteRecord: (recordId: string) => Promise<void>
 }
 
 const RecordsContext = createContext<RecordsContextValue | null>(null)
@@ -73,13 +73,12 @@ export function RecordsProvider({ children }: { children: React.ReactNode }) {
   const addRecord = useCallback(
     async (record: DayRecord) => {
       if (!user) {
-        throw new Error('サインインすると記録を保存できます。')
+        throw new Error('サインインすると写真を保存できます。')
       }
 
       const savedRecord = await saveUserRecord(user.uid, record)
       setRecords((prev) => {
-        // 1日1件：同じ日付があれば置き換える
-        const filtered = prev.filter((r) => r.date !== savedRecord.date)
+        const filtered = prev.filter((item) => item.date !== savedRecord.date)
         return sortByDateDesc([savedRecord, ...filtered])
       })
       return savedRecord
@@ -87,53 +86,25 @@ export function RecordsProvider({ children }: { children: React.ReactNode }) {
     [user],
   )
 
-  const reactToInsight = useCallback(
-    async (recordId: string, reaction: AiReaction) => {
+  const deleteRecord = useCallback(
+    async (recordId: string) => {
       if (!user) {
-        throw new Error('サインインするとリアクションを保存できます。')
+        throw new Error('サインインすると写真を削除できます。')
       }
 
-      const record = records.find((r) => r.id === recordId)
-      if (!record) throw new Error('記録が見つかりません。')
-
-      const nextReactions = [
-        ...(record.aiReactions ?? []).filter((item) => item.id !== reaction.id),
-        reaction,
-      ]
-      const nextCustomReactions = reaction.customReaction
-        ? [
-            ...(record.customAiReactions ?? []).filter(
-              (item) => item.id !== reaction.customReaction?.id,
-            ),
-            reaction.customReaction,
-          ]
-        : record.customAiReactions ?? []
-
-      await saveUserRecordReactions(
-        user.uid,
-        recordId,
-        nextReactions,
-        nextCustomReactions,
-      )
-      setRecords((prev) =>
-        sortByDateDesc(
-          prev.map((item) =>
-            item.id === recordId
-              ? {
-                  ...item,
-                  aiReactions: nextReactions,
-                  customAiReactions: nextCustomReactions,
-                }
-              : item,
-          ),
-        ),
-      )
+      await deleteUserRecord(user.uid, recordId)
+      setRecords((prev) => prev.filter((record) => record.id !== recordId))
     },
-    [records, user],
+    [user],
   )
 
   const getById = useCallback(
-    (id: string) => records.find((r) => r.id === id),
+    (id: string) => records.find((record) => record.id === id),
+    [records],
+  )
+
+  const getByDate = useCallback(
+    (date: string) => records.find((record) => record.date === date),
     [records],
   )
 
@@ -143,12 +114,22 @@ export function RecordsProvider({ children }: { children: React.ReactNode }) {
       today,
       loading,
       error,
-      todayRecord: records.find((r) => r.date === today),
+      todayRecord: getByDate(today),
       getById,
+      getByDate,
       addRecord,
-      reactToInsight,
+      deleteRecord,
     }
-  }, [records, today, loading, error, getById, addRecord, reactToInsight])
+  }, [
+    records,
+    today,
+    loading,
+    error,
+    getById,
+    getByDate,
+    addRecord,
+    deleteRecord,
+  ])
 
   return (
     <RecordsContext.Provider value={value}>{children}</RecordsContext.Provider>
