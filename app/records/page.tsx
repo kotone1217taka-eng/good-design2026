@@ -5,7 +5,7 @@ import { PhotoCalendar } from '@/components/photo-calendar'
 import { useRecords } from '@/lib/records-store'
 
 export default function MemoryPage() {
-  const { records, loading, error } = useRecords()
+  const { records, today, loading, error } = useRecords()
 
   return (
     <AppShell showAuth={false}>
@@ -27,7 +27,7 @@ export default function MemoryPage() {
           </p>
         )}
 
-        {!loading && !error && <PhotoCalendar records={records} />}
+        {!loading && !error && <PhotoCalendar records={records} today={today} />}
       </div>
     </AppShell>
   )
