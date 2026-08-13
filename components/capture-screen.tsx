@@ -9,7 +9,31 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth-store'
 import { formatDateJP } from '@/lib/date'
 import { useRecords } from '@/lib/records-store'
-import type { DayRecord, PhotoInput } from '@/lib/types'
+import type { DayRecord, PhotoInput, PhotoLocation } from '@/lib/types'
+
+function getCurrentLocation(): Promise<PhotoLocation | undefined> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    return Promise.resolve(undefined)
+  }
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        })
+      },
+      () => resolve(undefined),
+      {
+        enableHighAccuracy: false,
+        maximumAge: 1000 * 60 * 10,
+        timeout: 5000,
+      },
+    )
+  })
+}
 
 export function CaptureScreen() {
   const router = useRouter()
@@ -31,13 +55,15 @@ export function CaptureScreen() {
 
     setSaving(true)
     setError('')
+    const location = await getCurrentLocation()
 
     const record: DayRecord = {
       id: `rec-${today}`,
       date: today,
-      createdAt: todayRecord?.createdAt ?? new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       photo: photo.src,
       hasPhoto: true,
+      location: location ?? todayRecord?.location,
     }
 
     try {

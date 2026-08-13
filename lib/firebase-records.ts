@@ -79,6 +79,7 @@ export async function saveUserRecord(
     createdAt: normalized.createdAt,
     photo,
     hasPhoto: normalized.hasPhoto ?? true,
+    location: normalized.location,
   }
 
   await setDoc(recordDocument(uid, savedRecord.id), {

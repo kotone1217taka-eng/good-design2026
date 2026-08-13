@@ -8,9 +8,17 @@ import { AppShell } from '@/components/app-shell'
 import { PhotoUpload } from '@/components/photo-upload'
 import { RecordImage } from '@/components/record-image'
 import { Button } from '@/components/ui/button'
-import { formatDateJP } from '@/lib/date'
+import { formatDateJP, formatTimeJP } from '@/lib/date'
 import { useRecords } from '@/lib/records-store'
-import type { DayRecord, PhotoInput } from '@/lib/types'
+import type { DayRecord, PhotoInput, PhotoLocation } from '@/lib/types'
+
+function formatLocation(location: PhotoLocation | undefined): string {
+  if (!location) return '位置情報なし'
+
+  const latitude = location.latitude.toFixed(5)
+  const longitude = location.longitude.toFixed(5)
+  return `${latitude}, ${longitude}`
+}
 
 export function RecordDetailClient({ id }: { id: string }) {
   const router = useRouter()
@@ -42,9 +50,10 @@ export function RecordDetailClient({ id }: { id: string }) {
     const nextRecord: DayRecord = {
       id: record.id,
       date: record.date,
-      createdAt: record.createdAt,
+      createdAt: new Date().toISOString(),
       photo: photo.src,
       hasPhoto: true,
+      location: record.location,
     }
 
     try {
@@ -84,27 +93,17 @@ export function RecordDetailClient({ id }: { id: string }) {
 
   return (
     <AppShell>
-      <div className="flex flex-col gap-7">
-        <div className="flex flex-col gap-3">
-          <Link
-            href="/records"
-            className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            メモリー
-          </Link>
-          <div>
-            <p className="text-xs tracking-[0.18em] text-muted-foreground">
-              {formatDateJP(record.date)}
-            </p>
-            <h1 className="mt-1 font-serif text-2xl font-light tracking-wide text-foreground">
-              この日の1枚
-            </h1>
-          </div>
-        </div>
+      <div className="flex flex-col gap-6">
+        <Link
+          href="/records"
+          className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          メモリー
+        </Link>
 
         {!editing ? (
-          <section className="overflow-hidden rounded-2xl border border-border bg-card">
+          <section className="overflow-hidden rounded-lg bg-black">
             <div className="relative aspect-[4/5] w-full">
               <RecordImage
                 src={record.photo}
@@ -112,10 +111,11 @@ export function RecordDetailClient({ id }: { id: string }) {
                 className="object-cover"
                 priority
               />
-              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/55 to-transparent" />
-              <span className="absolute bottom-4 left-4 rounded-full bg-black/35 px-3 py-1.5 text-xs tracking-wide text-white backdrop-blur-sm">
-                {formatDateJP(record.date)}
-              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-px bg-neutral-900 text-white">
+              <InfoItem label="撮影日" value={formatDateJP(record.date)} />
+              <InfoItem label="撮影時間" value={formatTimeJP(record.createdAt)} />
+              <InfoItem label="撮影場所" value={formatLocation(record.location)} />
             </div>
           </section>
         ) : (
@@ -196,5 +196,14 @@ export function RecordDetailClient({ id }: { id: string }) {
         </div>
       </div>
     </AppShell>
+  )
+}
+
+function InfoItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 bg-black px-3 py-3">
+      <p className="text-[10px] tracking-[0.18em] text-white/45">{label}</p>
+      <p className="mt-1 truncate text-xs text-white">{value}</p>
+    </div>
   )
 }

@@ -1,17 +1,32 @@
 'use client'
 
 import Link from 'next/link'
-import { Camera } from 'lucide-react'
+import { useState } from 'react'
+import { Camera, ChevronLeft, ChevronRight } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { PhotoCalendar } from '@/components/photo-calendar'
 import { WeekCollage } from '@/components/week-collage'
 import { Button } from '@/components/ui/button'
+import {
+  addDays,
+  getWeekStartIso,
+  parseIso,
+  toIso,
+} from '@/lib/date'
 import { useRecords } from '@/lib/records-store'
 import { getWeekPhotoSummary } from '@/lib/weekly'
 
 export default function MemoryPage() {
   const { records, today, loading, error } = useRecords()
-  const weekSummary = getWeekPhotoSummary(records, today)
+  const [posterWeek, setPosterWeek] = useState(today)
+  const weekSummary = getWeekPhotoSummary(records, posterWeek)
+  const currentWeekStart = getWeekStartIso(today)
+  const posterWeekStart = getWeekStartIso(posterWeek)
+  const isCurrentWeek = posterWeekStart === currentWeekStart
+
+  function moveWeek(amount: number) {
+    setPosterWeek((current) => toIso(addDays(parseIso(current), amount * 7)))
+  }
 
   return (
     <AppShell>
@@ -25,7 +40,7 @@ export default function MemoryPage() {
               メモリー
             </h1>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              撮った写真だけが、日付ごとに静かに残ります。
+              写真がある日も、ない日も、同じ大きさのマスとして残ります。
             </p>
           </div>
           <Button asChild size="icon-lg" className="rounded-full">
@@ -46,30 +61,47 @@ export default function MemoryPage() {
           </p>
         )}
 
-        <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card px-5 py-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-medium text-card-foreground">
-                今週のメモリー
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                {weekSummary.progress.rangeLabel}
-              </p>
-            </div>
-            <span className="font-mono text-xl text-foreground">
-              {weekSummary.progress.recorded}/7
-            </span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${weekSummary.progress.percent}%` }}
-            />
-          </div>
-          <WeekCollage slots={weekSummary.slots} />
-        </section>
+        <PhotoCalendar records={records} today={today} />
 
-        <PhotoCalendar records={records} today={today} controls />
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon-sm"
+              className="rounded-full"
+              aria-label="前の週のポスター"
+              onClick={() => moveWeek(-1)}
+            >
+              <ChevronLeft className="size-4" aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant={isCurrentWeek ? 'ghost' : 'secondary'}
+              className="h-8 rounded-full px-4 text-xs font-normal"
+              disabled={isCurrentWeek}
+              onClick={() => setPosterWeek(today)}
+            >
+              {isCurrentWeek ? '今週' : '今週へ'}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon-sm"
+              className="rounded-full"
+              aria-label="次の週のポスター"
+              disabled={isCurrentWeek}
+              onClick={() => moveWeek(1)}
+            >
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
+
+          <WeekCollage
+            slots={weekSummary.slots}
+            rangeLabel={weekSummary.progress.rangeLabel}
+          />
+        </section>
       </div>
     </AppShell>
   )

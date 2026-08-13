@@ -45,6 +45,15 @@ export function formatDateShort(iso: string): string {
   return `${Number(month)}/${Number(day)}`
 }
 
+export function formatTimeJP(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '時間なし'
+  return new Intl.DateTimeFormat('ja-JP', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 export function getWeekStartIso(iso: string): string {
   const date = parseIso(iso)
   const day = date.getDay()
