@@ -80,6 +80,7 @@ export async function saveUserRecord(
     photo,
     hasPhoto: normalized.hasPhoto ?? true,
     location: normalized.location,
+    locationName: normalized.locationName,
   }
 
   await setDoc(recordDocument(uid, savedRecord.id), {

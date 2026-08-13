@@ -1,25 +1,59 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { notFound, useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { AppShell } from '@/components/app-shell'
 import { RecordImage } from '@/components/record-image'
 import { formatDateJP, formatTimeJP } from '@/lib/date'
 import { useRecords } from '@/lib/records-store'
-import type { PhotoLocation } from '@/lib/types'
+import { reverseGeocodeLocationName } from '@/lib/reverse-geocode'
+import type { DayRecord } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
-function formatLocation(location: PhotoLocation | undefined): string {
-  if (!location) return '位置情報なし'
-
-  const latitude = location.latitude.toFixed(5)
-  const longitude = location.longitude.toFixed(5)
-  return `${latitude}, ${longitude}`
+function getLocationLabel(
+  record: DayRecord,
+  resolvedLocationName: string,
+  resolvingLocationName: boolean,
+): string {
+  if (record.locationName) return record.locationName
+  if (resolvedLocationName) return resolvedLocationName
+  if (record.location && resolvingLocationName) return '場所を取得中'
+  return '場所情報なし'
 }
 
 export function RecordDetailClient({ id }: { id: string }) {
   const router = useRouter()
-  const { getById, loading } = useRecords()
+  const { getById, loading, addRecord } = useRecords()
   const record = getById(id)
+  const [resolvedLocationName, setResolvedLocationName] = useState('')
+  const [resolvingLocationName, setResolvingLocationName] = useState(false)
+
+  useEffect(() => {
+    if (!record?.location || record.locationName) return
+
+    let active = true
+    setResolvingLocationName(true)
+    setResolvedLocationName('')
+
+    reverseGeocodeLocationName(record.location)
+      .then(async (locationName) => {
+        if (!active || !locationName) return
+        setResolvedLocationName(locationName)
+        await addRecord({
+          ...record,
+          locationName,
+        })
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setResolvingLocationName(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [addRecord, record])
 
   if (loading) {
     return (
@@ -56,10 +90,19 @@ export function RecordDetailClient({ id }: { id: string }) {
               priority
             />
           </div>
-          <div className="grid grid-cols-3 gap-px bg-neutral-900 text-white">
+          <div className="grid grid-cols-2 gap-px bg-neutral-900 text-white">
             <InfoItem label="撮影日" value={formatDateJP(record.date)} />
             <InfoItem label="撮影時間" value={formatTimeJP(record.createdAt)} />
-            <InfoItem label="撮影場所" value={formatLocation(record.location)} />
+            <InfoItem
+              label="撮影場所"
+              value={getLocationLabel(
+                record,
+                resolvedLocationName,
+                resolvingLocationName,
+              )}
+              className="col-span-2"
+              multiline
+            />
           </div>
         </section>
       </div>
@@ -67,11 +110,28 @@ export function RecordDetailClient({ id }: { id: string }) {
   )
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
+function InfoItem({
+  label,
+  value,
+  className,
+  multiline = false,
+}: {
+  label: string
+  value: string
+  className?: string
+  multiline?: boolean
+}) {
   return (
-    <div className="min-w-0 bg-black px-3 py-3">
+    <div className={cn('min-w-0 bg-black px-3 py-3', className)}>
       <p className="text-[10px] tracking-[0.18em] text-white/45">{label}</p>
-      <p className="mt-1 truncate text-xs text-white">{value}</p>
+      <p
+        className={cn(
+          'mt-1 text-xs text-white',
+          multiline ? 'leading-relaxed' : 'truncate',
+        )}
+      >
+        {value}
+      </p>
     </div>
   )
 }

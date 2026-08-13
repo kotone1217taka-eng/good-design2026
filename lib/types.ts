@@ -16,4 +16,5 @@ export type DayRecord = {
   photo: string
   hasPhoto?: boolean
   location?: PhotoLocation
+  locationName?: string
 }

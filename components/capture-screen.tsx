@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/auth-store'
 import { formatDateJP } from '@/lib/date'
 import { useRecords } from '@/lib/records-store'
+import { reverseGeocodeLocationName } from '@/lib/reverse-geocode'
 import type { DayRecord, PhotoInput, PhotoLocation } from '@/lib/types'
 
 function getCurrentLocation(): Promise<PhotoLocation | undefined> {
@@ -56,6 +57,9 @@ export function CaptureScreen() {
     setSaving(true)
     setError('')
     const location = await getCurrentLocation()
+    const locationName = location
+      ? await reverseGeocodeLocationName(location)
+      : todayRecord?.locationName
 
     const record: DayRecord = {
       id: `rec-${today}`,
@@ -64,6 +68,7 @@ export function CaptureScreen() {
       photo: photo.src,
       hasPhoto: true,
       location: location ?? todayRecord?.location,
+      locationName,
     }
 
     try {
