@@ -1,11 +1,28 @@
 'use client'
 
+import { Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { AppShell } from '@/components/app-shell'
 import { PhotoCalendar } from '@/components/photo-calendar'
+import { RecordDetailClient } from '@/components/record-detail-client'
 import { useRecords } from '@/lib/records-store'
 
 export default function FutoshotPage() {
+  return (
+    <Suspense fallback={<FutoshotLoading />}>
+      <FutoshotPageContent />
+    </Suspense>
+  )
+}
+
+function FutoshotPageContent() {
+  const searchParams = useSearchParams()
+  const selectedRecordId = searchParams.get('record')
   const { records, today, loading, error } = useRecords()
+
+  if (selectedRecordId) {
+    return <RecordDetailClient id={selectedRecordId} />
+  }
 
   return (
     <AppShell showAuth={false}>
@@ -31,6 +48,16 @@ export default function FutoshotPage() {
         )}
 
         {!loading && !error && <PhotoCalendar records={records} today={today} />}
+      </div>
+    </AppShell>
+  )
+}
+
+function FutoshotLoading() {
+  return (
+    <AppShell showAuth={false}>
+      <div className="rounded-2xl border border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
+        フトショットを読み込んでいます。
       </div>
     </AppShell>
   )

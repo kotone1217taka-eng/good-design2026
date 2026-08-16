@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { RecordImage } from '@/components/record-image'
-import type { DayRecord } from '@/lib/types'
 import { formatDateJP } from '@/lib/date'
+import type { DayRecord } from '@/lib/types'
 
 export function RecordCard({ record }: { record: DayRecord }) {
   return (
     <Link
-      href={`/records/${record.id}`}
+      href={`/records/?record=${record.id}`}
       className="group block overflow-hidden rounded-2xl border border-border bg-card transition-colors hover:border-primary/40"
     >
       <div className="relative aspect-[5/3] w-full overflow-hidden">

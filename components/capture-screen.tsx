@@ -73,7 +73,7 @@ export function CaptureScreen() {
 
     try {
       const savedRecord = await addRecord(record)
-      router.push(`/records/${savedRecord.id}`)
+      router.push(`/records/?record=${savedRecord.id}`)
     } catch (nextError) {
       setError(
         nextError instanceof Error

@@ -103,7 +103,7 @@ export function PhotoCalendar({
             return (
               <Link
                 key={item.date}
-                href={`/records/${item.record.id}`}
+                href={`/records/?record=${item.record.id}`}
                 aria-label={`${formatDateJP(item.date)}の写真を見る`}
                 className="group relative aspect-square overflow-hidden bg-black"
               >
