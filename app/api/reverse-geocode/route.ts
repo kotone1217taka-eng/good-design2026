@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       signal: controller.signal,
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'MemoryPhotoDiary/1.0',
+        'User-Agent': 'Futoshot/1.0',
       },
       next: { revalidate: 60 * 60 * 24 * 30 },
     })

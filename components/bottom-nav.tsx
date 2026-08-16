@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 
 const ITEMS = [
   { href: '/', label: '撮る', icon: Camera },
-  { href: '/records', label: 'メモリー', icon: Images },
+  { href: '/records', label: 'フトショット', icon: Images },
 ] as const
 
 export function BottomNav() {

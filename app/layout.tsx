@@ -6,8 +6,8 @@ import { AuthProvider } from '@/lib/auth-store'
 import { RecordsProvider } from '@/lib/records-store'
 
 export const metadata: Metadata = {
-  title: 'Memory',
-  description: '毎日1枚の写真が積み重なっていく、パーソナルな記憶のロール。',
+  title: 'フトショット',
+  description: 'ふと撮る、日々が見えてくる。',
   generator: 'v0.app',
 }
 

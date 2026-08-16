@@ -108,14 +108,14 @@ export function CaptureScreen() {
             className="pointer-events-auto inline-flex h-10 items-center gap-1.5 rounded-full bg-white/90 px-3 text-xs font-medium text-foreground shadow-lg backdrop-blur-md transition-transform active:scale-95"
           >
             <Images className="size-4" aria-hidden="true" />
-            メモリー
+            フトショット
           </Link>
         </div>
 
         {!photo && (
           <div className="pointer-events-none absolute inset-x-6 bottom-24 z-30 flex flex-col items-center gap-2 text-center">
             <span className="rounded-full bg-black/35 px-3 py-1.5 text-[11px] tracking-wide text-white/75 backdrop-blur-md">
-              アプリを開くと、そのままカメラが起動します
+              ふと撮る、日々が見えてくる。
             </span>
             {todayRecord && (
               <span className="rounded-full bg-white/90 px-3 py-1.5 text-[11px] text-foreground shadow-lg">

@@ -40,7 +40,7 @@ export function AuthStatus() {
         <div className="min-w-0">
           <p className="text-xs font-medium text-card-foreground">未ログイン</p>
           <p className="truncate text-[11px] text-muted-foreground">
-            写真日記はアカウントごとに保存されます。
+            フトショットはアカウントごとに保存されます。
           </p>
           {error && <p className="mt-1 text-[11px] text-destructive">{error}</p>}
         </div>

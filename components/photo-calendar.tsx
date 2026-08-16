@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 
 const minimumVisibleDays = 84
 
-type MemoryGridItem =
+type FutoshotGridItem =
   | {
       type: 'month'
       key: string
@@ -39,7 +39,7 @@ export function PhotoCalendar({
     () => new Map(records.map((record) => [record.date, record])),
     [records],
   )
-  const items = useMemo<MemoryGridItem[]>(() => {
+  const items = useMemo<FutoshotGridItem[]>(() => {
     const todayDate = parseIso(today)
     const oldestRecordDate = records.reduce<Date | null>((oldest, record) => {
       const date = parseIso(record.date)
@@ -53,7 +53,7 @@ export function PhotoCalendar({
         : minimumStart
     const dayCount =
       Math.floor((todayDate.getTime() - startDate.getTime()) / 86400000) + 1
-    const nextItems: MemoryGridItem[] = []
+    const nextItems: FutoshotGridItem[] = []
     let currentMonth = ''
 
     for (let index = 0; index < dayCount; index += 1) {
@@ -84,7 +84,7 @@ export function PhotoCalendar({
   }, [items.length])
 
   return (
-    <section className="min-h-[70dvh] bg-black" aria-label="Memory">
+    <section className="min-h-[70dvh] bg-black" aria-label="フトショット">
       <div className="grid grid-cols-4 gap-px bg-black">
         {items.map((item) => {
           if (item.type === 'month') {

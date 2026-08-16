@@ -59,7 +59,7 @@ export function RecordDetailClient({ id }: { id: string }) {
     return (
       <AppShell showAuth={false}>
         <div className="rounded-2xl border border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
-          メモリーを読み込んでいます。
+          フトショットを読み込んでいます。
         </div>
       </AppShell>
     )
@@ -77,7 +77,7 @@ export function RecordDetailClient({ id }: { id: string }) {
             onClick={() => router.push('/records')}
           >
             <ArrowLeft className="size-4" aria-hidden="true" />
-            Memory
+            フトショット
           </button>
         </div>
 
